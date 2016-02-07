@@ -1,3 +1,6 @@
+  [Ian Gilfillan]
+  * Add missing mysql_embedded man pag
+
 mariadb-10.0 (10.0.23-3) UNRELEASED; urgency=low
 
   * Add Lintian overrides for TokuDB sources that indeed need autotools files
