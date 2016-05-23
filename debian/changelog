@@ -1,4 +1,4 @@
-mariadb-10.0 (10.0.25-1) UNRELEASED; urgency=low
+mariadb-10.0 (10.0.25-1) unstable; urgency=low
 
   * Revert previous changes tailored for Ubuntu 16.04 compatibility.
   * New upstream release 10.0.25. Includes fixes for the following
@@ -19,7 +19,7 @@ mariadb-10.0 (10.0.25-1) UNRELEASED; urgency=low
   * Updated Brazilian Portuguese translation (Closes: #824644).
   * Add patch to provide passwordless root accounts for test suite.
 
- -- Otto Kekäläinen <otto@debian.org>  Sat, 30 Apr 2016 21:00:18 +0300
+ -- Otto Kekäläinen <otto@debian.org>  Mon, 23 May 2016 16:08:52 +0300
 
 mariadb-10.0 (10.0.24-7) unstable; urgency=low
 
