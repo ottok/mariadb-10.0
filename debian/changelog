@@ -1,3 +1,9 @@
+mariadb-10.0 (10.0.25-1ubuntu1) unstable; urgency=low
+
+  * Fix oqgraph compilation failure when boost library is >= 1.60
+
+ -- Vicențiu Ciorbaru <cvicentiu@gmail.com>  Sun, 29 May 2016 17:19:58 +0300
+
 mariadb-10.0 (10.0.25-1) unstable; urgency=low
 
   * Revert previous changes tailored for Ubuntu 16.04 compatibility.
