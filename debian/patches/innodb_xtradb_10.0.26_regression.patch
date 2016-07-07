@@ -1,0 +1,34 @@
+Description: Revert innodb and xtradb PowerPC synchronization from 10.0.26
+  On PowerPC 64 Little Endian we have synchronization problems that causes
+  warnings in test cases. The patch reverts these changes from 10.0.26 that
+  caused this regression.
+  .
+  This patch should be removed when upstream provides an adequate fix.
+Author: Vicențiu Ciorbaru <vicentiu@mariadb.org>
+
+diff --git a/storage/innobase/include/os0sync.h b/storage/innobase/include/os0sync.h
+index 1cf4e9c..95e724e 100644
+--- a/storage/innobase/include/os0sync.h
++++ b/storage/innobase/include/os0sync.h
+@@ -466,7 +466,7 @@ amount to decrement. */
+ # define os_atomic_decrement_uint64(ptr, amount) \
+ 	os_atomic_decrement(ptr, amount)
+ 
+-# if defined(HAVE_ATOMIC_BUILTINS)
++# if defined(IB_STRONG_MEMORY_MODEL)
+ 
+ /** Do an atomic test and set.
+ @param[in,out]	ptr		Memory location to set to non-zero
+diff --git a/storage/xtradb/include/os0sync.h b/storage/xtradb/include/os0sync.h
+index 0f93f3f..dd808e8 100644
+--- a/storage/xtradb/include/os0sync.h
++++ b/storage/xtradb/include/os0sync.h
+@@ -517,7 +517,7 @@ amount to decrement. */
+ # define os_atomic_decrement_uint64(ptr, amount) \
+ 	os_atomic_decrement(ptr, amount)
+ 
+-# if defined(HAVE_ATOMIC_BUILTINS)
++# if defined(IB_STRONG_MEMORY_MODEL)
+ 
+ /** Do an atomic test and set.
+ @param[in,out]	ptr		Memory location to set to non-zero
