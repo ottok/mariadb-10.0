@@ -256,7 +256,8 @@ Description: MariaDB database regression test suite
 
 Package: mariadb-test-data
 Architecture: all
-Depends: ${misc:Depends}
+Depends: ${misc:Depends},
+         python
 Breaks: mariadb-test-10.0,
         mariadb-test-5.5,
         mariadb-test-data-10.0,
