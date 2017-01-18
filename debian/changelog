@@ -1,3 +1,21 @@
+mariadb-10.0 (10.0.29-0ubuntu0.16.10.1) yakkety-security; urgency=high
+
+  * SECURITY UPDATE: New upstream release 10.0.29. Includes fixes for the
+    following security vulnerabilities (LP: #1657594):
+    - CVE-2017-3318
+    - CVE-2017-3317
+    - CVE-2017-3312
+    - CVE-2017-3291
+    - CVE-2017-3265
+    - CVE-2017-3258
+    - CVE-2017-3257
+    - CVE-2017-3244
+    - CVE-2017-3243
+    - CVE-2017-3238
+    - CVE-2016-6664
+
+ -- Otto Kekäläinen <otto@debian.org>  Thu, 19 Jan 2017 00:32:48 +0200
+
 mariadb-10.0 (10.0.28-0ubuntu0.16.10.1) yakkety-security; urgency=high
 
   [ Otto Kekäläinen ]
