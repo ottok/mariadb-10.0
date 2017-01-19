@@ -1,7 +1,7 @@
 mariadb-10.0 (10.0.29-0+deb8u1) jessie-security; urgency=high
 
   * New upstream release 10.0.29. Includes fixes for the following
-    security vulnerabilities (Closes: #851755):
+    security vulnerabilities (Closes: #851755, #849435):
     - CVE-2017-3318
     - CVE-2017-3317
     - CVE-2017-3312
