@@ -1,3 +1,12 @@
+mariadb-10.0 (10.0.30-0+deb8u1) jessie-security; urgency=high
+
+  * New upstream release 10.0.30. Includes fixes for the following
+    security vulnerabilities:
+    - CVE-2017-3313
+    - CVE-2017-3302
+
+ -- Otto Kekäläinen <otto@debian.org>  Thu, 09 Mar 2017 09:30:54 +0200
+
 mariadb-10.0 (10.0.29-0+deb8u1) jessie-security; urgency=high
 
   * New upstream release 10.0.29. Includes fixes for the following

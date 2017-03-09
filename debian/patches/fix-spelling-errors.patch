@@ -4,7 +4,7 @@ Last-Update: 2014-10-02
 
 --- a/storage/connect/tabxml.cpp
 +++ b/storage/connect/tabxml.cpp
-@@ -1835,7 +1835,7 @@ void XMULCOL::ReadColumn(PGLOBAL g)
+@@ -1840,7 +1840,7 @@ void XMULCOL::ReadColumn(PGLOBAL g)
  
        if (N > Tdbp->Limit) {
          N = Tdbp->Limit;
