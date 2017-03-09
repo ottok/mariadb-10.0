@@ -29169,7 +29169,7 @@ yyreduce:
             LEX *lex= Lex;
             if (lex->create_info.add_alter_list_item_convert_to_charset((yyvsp[(5) - (5)].charset)))
               MYSQL_YYABORT;
-            lex->alter_info.flags|= Alter_info::ALTER_CONVERT;
+            lex->alter_info.flags|= Alter_info::ALTER_OPTIONS;
           }
     break;
 
