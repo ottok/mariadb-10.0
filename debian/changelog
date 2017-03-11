@@ -4,6 +4,9 @@ mariadb-10.0 (10.0.30-0+deb8u1) jessie-security; urgency=high
     security vulnerabilities:
     - CVE-2017-3313
     - CVE-2017-3302
+  * New upstream also includes fix to logrotate so that it no longer
+    risks interrupting binary/relay log processing on the server.
+    https://github.com/MariaDB/server/commit/156cf86defdc59353f37f6
 
  -- Otto Kekäläinen <otto@debian.org>  Thu, 09 Mar 2017 09:30:54 +0200
 
