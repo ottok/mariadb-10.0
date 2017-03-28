@@ -1,3 +1,10 @@
+mariadb-10.0 (10.0.30-0+deb8u2) jessie-security; urgency=medium
+
+  * Remove the excessive server stopping and only-cleanup on purge when
+    this is the last MySQL package (Closes: #858941)
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 28 Mar 2017 23:25:31 +0200
+
 mariadb-10.0 (10.0.30-0+deb8u1) jessie-security; urgency=high
 
   * New upstream release 10.0.30. Includes fixes for the following
