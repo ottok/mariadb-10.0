@@ -18,32 +18,6 @@ DATADIR=/var/lib/mysql
 LOGDIR=/var/log/mysql
 UPGRADEDIR=/var/lib/mysql-upgrade
 
-# Try to stop the server in a sane way. If it does not success let the admin
-# do it himself. No database directories should be removed while the server
-# is running! Another mysqld in e.g. a different chroot is fine for us.
-stop_server() {
-    if [ ! -x /etc/init.d/mysql ]; then return; fi
-
-    set +e
-    if [ -x /usr/sbin/invoke-rc.d ]; then
-      cmd="invoke-rc.d mysql stop"
-    else
-      cmd="/etc/init.d/mysql stop"
-    fi
-    $cmd
-    errno=$?
-    set -e
-
-    # 0=ok, 100=no init script (fresh install)
-    if [ "$errno" != 0 -a "$errno" != 100 ]; then
-      echo "${cmd/ */} returned $errno" 1>&2
-      echo "There is a MySQL server running, but we failed in our attempts to stop it." 1>&2
-      echo "Stop it yourself and try again!" 1>&2
-      db_stop
-      exit 1
-    fi
-}
-
 ################################ main() ##########################
 
 # Show upgrade warning if old data exists
@@ -98,9 +72,6 @@ if [ "$show_downgrade_warning" = 1 ]; then
     exit 1
   fi
 fi
-
-# to be sure
-stop_server
 
 # If we use NIS then errors should be tolerated. It's up to the
 # user to ensure that the mysql user is correctly setup.

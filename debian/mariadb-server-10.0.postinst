@@ -13,14 +13,6 @@ ERR_LOGGER="logger -p daemon.err -t mysqld_safe -i"
 # the install, rather than failing silently and leaving a broken install.
 set -o pipefail
 
-invoke() {
-  if [ -x /usr/sbin/invoke-rc.d ]; then
-    invoke-rc.d mysql $1
-  else
-    /etc/init.d/mysql $1
-  fi
-}
-
 MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --disable-log-bin --skip-grant-tables --default-storage-engine=myisam"
 
 test_passwordless_root_login() {
@@ -56,12 +48,6 @@ EOF
        rm -f $tfile
        return $retval
 }
-
-# This is necessary because mysql_install_db removes the pid file in /var/run
-# and because changed configuration options should take effect immediately.
-# In case the server wasn't running at all it should be ok if the stop
-# script fails. I can't tell at this point because of the cleaned /var/run.
-set +e; invoke stop; set -e
 
 case "$1" in
   configure)
