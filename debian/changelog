@@ -1,3 +1,15 @@
+mariadb-10.0 (10.0.31-0+deb8u1) jessie-security; urgency=high
+
+  * New upstream version 10.0.31.Includes fixes for the following
+    security vulnerabilities:
+    - CVE-2017-3464
+    - CVE-2017-3456
+    - CVE-2017-3453
+    - CVE-2017-3309
+    - CVE-2017-3308
+
+ -- Otto Kekäläinen <otto@debian.org>  Mon, 19 Jun 2017 01:49:14 +0200
+
 mariadb-10.0 (10.0.30-0+deb8u2) jessie; urgency=medium
 
   * Remove the excessive server stopping and only-cleanup on purge when
