@@ -558,7 +558,7 @@ file '%s')", fname);
     mi->connect_retry= (uint) connect_retry;
     mi->ssl= (my_bool) ssl;
     mi->ssl_verify_server_cert= ssl_verify_server_cert;
-    mi->heartbeat_period= master_heartbeat_period;
+    mi->heartbeat_period= MY_MIN(SLAVE_MAX_HEARTBEAT_PERIOD, master_heartbeat_period);
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -675,8 +675,8 @@ int flush_master_info(Master_info* mi,
      contents of file). But because of number of lines in the first line
      of file we don't care about this garbage.
   */
-  char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
-  sprintf(heartbeat_buf, "%.3f", mi->heartbeat_period);
+  char heartbeat_buf[FLOATING_POINT_BUFFER];
+  my_fcvt(mi->heartbeat_period, 3, heartbeat_buf, NULL);
   my_b_seek(file, 0L);
   my_b_printf(file,
               "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n"
@@ -949,6 +949,7 @@ bool Master_info_index::init_all_master_info()
   int err_num= 0, succ_num= 0; // The number of success read Master_info
   char sign[MAX_CONNECTION_NAME+1];
   File index_file_nr;
+  THD *thd;
   DBUG_ENTER("init_all_master_info");
 
   DBUG_ASSERT(master_info_index);
@@ -980,6 +981,10 @@ bool Master_info_index::init_all_master_info()
     DBUG_RETURN(1);
   }
 
+  thd= new THD;  /* Needed by start_slave_threads */
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
+
   reinit_io_cache(&index_file, READ_CACHE, 0L,0,0);
   while (!init_strvar_from_file(sign, sizeof(sign),
                                 &index_file, NULL))
@@ -995,7 +1000,7 @@ bool Master_info_index::init_all_master_info()
         mi->error())
     {
       delete mi;
-      DBUG_RETURN(1);
+      goto error;
     }
 
     init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
@@ -1024,7 +1029,7 @@ bool Master_info_index::init_all_master_info()
       {
         /* Master_info is not in HASH; Add it */
         if (master_info_index->add_master_info(mi, FALSE))
-          DBUG_RETURN(1);
+          goto error;
         succ_num++;
         mi->unlock_slave_threads();
       }
@@ -1059,13 +1064,13 @@ bool Master_info_index::init_all_master_info()
 
       /* Master_info was not registered; add it */
       if (master_info_index->add_master_info(mi, FALSE))
-        DBUG_RETURN(1);
+        goto error;
       succ_num++;
 
       if (!opt_skip_slave_start)
       {
         if (start_slave_threads(1 /* need mutex */,
-              0 /* no wait for start*/,
+              1 /* wait for start*/,
               mi,
               buf_master_info_file,
               buf_relay_log_info_file,
@@ -1084,6 +1089,8 @@ bool Master_info_index::init_all_master_info()
       mi->unlock_slave_threads();
     }
   }
+  thd->reset_globals();
+  delete thd;
 
   if (!err_num) // No Error on read Master_info
   {
@@ -1091,16 +1098,19 @@ bool Master_info_index::init_all_master_info()
       sql_print_information("Reading of all Master_info entries succeded");
     DBUG_RETURN(0);
   }
-  else if (succ_num) // Have some Error and some Success
+  if (succ_num) // Have some Error and some Success
   {
     sql_print_warning("Reading of some Master_info entries failed");
     DBUG_RETURN(2);
   }
-  else // All failed
-  {
-    sql_print_error("Reading of all Master_info entries failed!");
-    DBUG_RETURN(1);
-  }
+
+  sql_print_error("Reading of all Master_info entries failed!");
+  DBUG_RETURN(1);
+
+error:
+  thd->reset_globals();
+  delete thd;
+  DBUG_RETURN(1);
 }
 
 

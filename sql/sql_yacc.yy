@@ -959,7 +959,7 @@ static bool sp_create_assignment_instr(THD *thd, bool no_lookahead)
 bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
-%pure_parser                                    /* We have threads */
+%pure-parser                                    /* We have threads */
 %parse-param { THD *thd }
 %lex-param { THD *thd }
 /*
@@ -4681,9 +4681,11 @@ size_number:
                 case 'g':
                 case 'G':
                   text_shift_number+=10;
+                  /* fall through */
                 case 'm':
                 case 'M':
                   text_shift_number+=10;
+                  /* fall through */
                 case 'k':
                 case 'K':
                   text_shift_number+=10;

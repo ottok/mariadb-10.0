@@ -2,7 +2,7 @@
 
 Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2017, MariaDB Corporation. All Rights Reserved.
+Copyright (c) 2017, MariaDB Corporation.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -223,9 +223,6 @@ UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
 #ifdef UNIV_SYNC_DEBUG
 /** Latching order checks start when this is set TRUE */
 UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
-
-/** Number of slots reserved for each OS thread in the sync level array */
-static const ulint SYNC_THREAD_N_LEVELS = 10000;
 
 /** Array for tracking sync levels per thread. */
 typedef std::vector<sync_level_t> sync_arr_t;
@@ -1223,6 +1220,7 @@ sync_thread_add_level(
 			upgrading in innobase_start_or_create_for_mysql(). */
 			break;
 		}
+		/* fall through */
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
@@ -1285,9 +1283,9 @@ sync_thread_add_level(
 			}
 		}
 		ut_ad(found_current);
-
-		/* fallthrough */
 	}
+
+		/* fall through */
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_LRU_LIST:
 	case SYNC_BUF_FREE_LIST:
