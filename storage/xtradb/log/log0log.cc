@@ -1,8 +1,8 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
-Copyright (c) 2017, MariaDB Corporation. All Rights Reserved.
+Copyright (c) 2017, MariaDB Corporation.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1858,7 +1858,7 @@ log_preflush_pool_modified_pages(
 		and we could not make a new checkpoint on the basis of the
 		info on the buffer pool only. */
 
-		recv_apply_hashed_log_recs(TRUE);
+		recv_apply_hashed_log_recs(true);
 	}
 
 	if (!buf_page_cleaner_is_active
@@ -2229,7 +2229,7 @@ log_checkpoint(
 	ut_ad(!srv_read_only_mode);
 
 	if (recv_recovery_is_on()) {
-		recv_apply_hashed_log_recs(TRUE);
+		recv_apply_hashed_log_recs(true);
 	}
 
 	if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC &&
@@ -2568,6 +2568,11 @@ loop:
 	start_lsn += len;
 	buf += len;
 
+	if (recv_sys->report(ut_time())) {
+		ib_logf(IB_LOG_LEVEL_INFO, "Read redo log up to LSN=" LSN_PF,
+			start_lsn);
+	}
+
 	if (start_lsn != end_lsn) {
 
 		if (release_mutex) {
@@ -2736,7 +2741,7 @@ log_group_archive(
 /*==============*/
 	log_group_t*	group)	/*!< in: log group */
 {
-	os_file_t	file_handle;
+	pfs_os_file_t	file_handle;
 	lsn_t		start_lsn;
 	lsn_t		end_lsn;
 	char		name[OS_FILE_MAX_PATH];
@@ -3507,12 +3512,6 @@ logs_empty_and_mark_files_at_shutdown(void)
 	if (log_disable_checkpoint_active)
 		log_enable_checkpoint();
 
-	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
-		/* we should wait until rollback after recovery end
-		for slow shutdown */
-		os_thread_sleep(100000);
-	}
-
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 
@@ -3564,7 +3563,8 @@ loop:
 
 	active_thd = srv_get_active_thread_type();
 
-	if (active_thd != SRV_NONE) {
+	if (active_thd != SRV_NONE
+	    || (srv_fast_shutdown != 2 && trx_rollback_or_clean_is_active)) {
 
 		if (active_thd == SRV_PURGE) {
 			srv_purge_wakeup();
@@ -3580,11 +3580,9 @@ loop:
 
 			switch (active_thd) {
 			case SRV_NONE:
-				/* This shouldn't happen because we've
-				already checked for this case before
-				entering the if(). We handle it here
-				to avoid a compiler warning. */
-				ut_error;
+				thread_type = "rollback of"
+					" recovered transactions";
+				break;
 			case SRV_WORKER:
 				thread_type = "worker threads";
 				break;
@@ -3718,9 +3716,15 @@ loop:
 
 	lsn = log_sys->lsn;
 
-	if (lsn != log_sys->last_checkpoint_lsn
-	    || (srv_track_changed_pages
-		&& (tracked_lsn != log_sys->last_checkpoint_lsn))
+	const bool	is_last =
+		((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+		  && lsn == log_sys->last_checkpoint_lsn
+		            + LOG_BLOCK_HDR_SIZE)
+		 || lsn == log_sys->last_checkpoint_lsn)
+		&& (!srv_track_changed_pages
+		    || tracked_lsn == log_sys->last_checkpoint_lsn);
+
+	if (!is_last
 #ifdef UNIV_LOG_ARCHIVE
 	    || (srv_log_archive_on
 		&& lsn != log_sys->archived_lsn + LOG_BLOCK_HDR_SIZE)
@@ -3786,7 +3790,8 @@ loop:
 	ut_a(freed);
 
 	ut_a(lsn == log_sys->lsn);
-	ut_ad(lsn == log_sys->last_checkpoint_lsn);
+	ut_ad(srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
+	      || lsn == log_sys->last_checkpoint_lsn);
 
 	if (lsn < srv_start_lsn) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
