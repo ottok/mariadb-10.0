@@ -786,7 +786,7 @@ rec_get_nth_field_offs_old(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(1,2)))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_get_converted_size_comp_prefix_low(
 /*===================================*/
@@ -1290,8 +1290,10 @@ rec_convert_dtuple_to_rec_comp(
 			}
 		}
 
-		memcpy(end, dfield_get_data(field), len);
-		end += len;
+		if (len) {
+			memcpy(end, dfield_get_data(field), len);
+			end += len;
+		}
 	}
 }
 

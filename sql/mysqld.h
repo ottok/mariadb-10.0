@@ -59,7 +59,6 @@ void kill_mysql(void);
 void close_connection(THD *thd, uint sql_errno= 0);
 void handle_connection_in_main_thread(THD *thd);
 void create_thread_to_handle_connection(THD *thd);
-void delete_running_thd(THD *thd);
 void signal_thd_deleted();
 void unlink_thd(THD *thd);
 bool one_thread_per_connection_end(THD *thd, bool put_in_cache);
@@ -107,7 +106,7 @@ extern ulong slave_run_triggers_for_rbr;
 #endif //RBR_TRIGGERS
 extern ulonglong slave_type_conversions_options;
 extern my_bool read_only, opt_readonly;
-extern my_bool lower_case_file_system;
+extern MYSQL_PLUGIN_IMPORT my_bool lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
@@ -118,7 +117,8 @@ extern my_bool sp_automatic_privileges, opt_noacl;
 extern ulong use_stat_tables;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
-extern char *shared_memory_base_name, *mysqld_unix_port;
+extern const char *shared_memory_base_name;
+extern char *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
 extern ulong opt_replicate_events_marked_for_skip;
 extern char *default_tz_name;
@@ -265,7 +265,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_xid_list,
   key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
-  key_master_info_sleep_lock,
+  key_master_info_sleep_lock, key_master_info_start_stop_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_rpl_group_info_sleep_lock,
@@ -487,6 +487,8 @@ extern pthread_t signal_thread;
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
+
+extern ulonglong my_pcre_frame_size;
 
 /*
   The following variables were under INNODB_COMPABILITY_HOOKS

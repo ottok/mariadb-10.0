@@ -13,7 +13,7 @@ typedef class  TDBFMT    *PTDBFMT;
 /***********************************************************************/
 /*  Functions used externally.                                         */
 /***********************************************************************/
-PQRYRES CSVColumns(PGLOBAL g, char *dp, PTOS topt, bool info);
+PQRYRES CSVColumns(PGLOBAL g, PCSZ dp, PTOS topt, bool info);
 
 /***********************************************************************/
 /*  CSV table.                                                         */
@@ -21,7 +21,7 @@ PQRYRES CSVColumns(PGLOBAL g, char *dp, PTOS topt, bool info);
 class DllExport CSVDEF : public DOSDEF { /* Logical table description  */
   friend class TDBCSV;
   friend class TDBCCL;
-	friend PQRYRES CSVColumns(PGLOBAL, char *, PTOS, bool);
+	friend PQRYRES CSVColumns(PGLOBAL, PCSZ, PTOS, bool);
 public:
   // Constructor
   CSVDEF(void);
@@ -52,7 +52,8 @@ public:
 /***********************************************************************/
 class DllExport TDBCSV : public TDBDOS {
   friend class CSVCOL;
-	friend PQRYRES CSVColumns(PGLOBAL, char *, PTOS, bool);
+	friend class MAPFAM;
+	friend PQRYRES CSVColumns(PGLOBAL, PCSZ, PTOS, bool);
 public:
   // Constructor
   TDBCSV(PCSVDEF tdp, PTXF txfp);
@@ -64,7 +65,7 @@ public:
                 {return (PTDB)new(g) TDBCSV(g, this);}
 
   // Methods
-  virtual PTDB CopyOne(PTABS t);
+  virtual PTDB Clone(PTABS t);
 //virtual bool IsUsingTemp(PGLOBAL g);
   virtual int  GetBadLines(void) {return (int)Nerr;}
 
@@ -147,7 +148,7 @@ class DllExport TDBFMT : public TDBCSV {
                 {return (PTDB)new(g) TDBFMT(g, this);}
 
   // Methods
-  virtual PTDB CopyOne(PTABS t);
+  virtual PTDB Clone(PTABS t);
 
   // Database routines
   virtual PCOL MakeCol(PGLOBAL g, PCOLDEF cdp, PCOL cprec, int n);

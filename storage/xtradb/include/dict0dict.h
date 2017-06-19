@@ -747,7 +747,7 @@ ulint
 dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is unique.
 @return	nonzero for unique index, zero for other indexes */
@@ -756,7 +756,7 @@ ulint
 dict_index_is_unique(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -765,7 +765,7 @@ ulint
 dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -774,7 +774,7 @@ ulint
 dict_index_is_sec_or_ibuf(
 /*======================*/
 	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /************************************************************************
 Gets the all the FTS indexes for the table. NOTE: must not be called for
@@ -796,7 +796,7 @@ ulint
 dict_table_get_n_user_cols(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Gets the number of system columns in a table in the dictionary cache.
 @return	number of system (e.g., ROW_ID) columns of a table */
@@ -815,7 +815,7 @@ ulint
 dict_table_get_n_cols(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((nonnull, pure, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Gets the approximately estimated number of rows in the table.
 @return	estimated number of rows */
@@ -1168,8 +1168,9 @@ ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	ulint			n,	/*!< in: column number */
+	ulint*			prefix_col_pos) /*!< out: col num if prefix */
+	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
 /********************************************************************//**
 Looks for column n in an index.
 @return position in internal representation of the index;
@@ -1180,9 +1181,11 @@ dict_index_get_nth_col_or_prefix_pos(
 /*=================================*/
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			n,		/*!< in: column number */
-	ibool			inc_prefix)	/*!< in: TRUE=consider
+	ibool			inc_prefix,	/*!< in: TRUE=consider
 						column prefixes too */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	ulint*			prefix_col_pos)	/*!< out: col num if prefix */
+
+	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return	TRUE if contains the column or its prefix */
@@ -1745,7 +1748,7 @@ ulint
 dict_index_is_corrupted(
 /*====================*/
 	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
@@ -1758,7 +1761,7 @@ dict_set_corrupted(
 	dict_index_t*	index,	/*!< in/out: index */
 	trx_t*		trx,	/*!< in/out: transaction */
 	const char*	ctx)	/*!< in: context */
-	UNIV_COLD MY_ATTRIBUTE((nonnull));
+	UNIV_COLD;
 
 /**********************************************************************//**
 Flags an index corrupted in the data dictionary cache only. This
@@ -1769,8 +1772,7 @@ void
 dict_set_corrupted_index_cache_only(
 /*================================*/
 	dict_index_t*	index,		/*!< in/out: index */
-	dict_table_t*	table)		/*!< in/out: table */
-	MY_ATTRIBUTE((nonnull));
+	dict_table_t*	table);		/*!< in/out: table */
 
 /**********************************************************************//**
 Flags a table with specified space_id corrupted in the table dictionary

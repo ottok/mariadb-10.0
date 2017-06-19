@@ -1,6 +1,6 @@
 /******************************************************************/
 /*  Implementation of XML document processing using PdbXML.       */
-/*  Author: Olivier Bertrand                2007-2012             */
+/*  Author: Olivier Bertrand                2007-2017             */
 /******************************************************************/
 #include "my_global.h"
 #include "global.h"
@@ -45,11 +45,11 @@ XMLDOCUMENT::XMLDOCUMENT(char *nsl, char *nsdf, char *enc)
 /******************************************************************/
 /*  Initialize zipped file processing.                            */
 /******************************************************************/
-bool XMLDOCUMENT::InitZip(PGLOBAL g, char *entry)
+bool XMLDOCUMENT::InitZip(PGLOBAL g, PCSZ entry)
 {
 #if defined(ZIP_SUPPORT)
 	bool mul = (entry) ? strchr(entry, '*') || strchr(entry, '?') : false;
-	zip = new(g) ZIPUTIL(entry, mul);
+	zip = new(g) UNZIPUTL(entry, mul);
 	return zip == NULL;
 #else   // !ZIP_SUPPORT
 	sprintf(g->Message, MSG(NO_FEAT_SUPPORT), "ZIP");
@@ -173,7 +173,7 @@ void XMLNODE::Delete(PXNODE dnp)
 /******************************************************************/
 /*  Store a string in Buf, enventually reallocating it.           */
 /******************************************************************/
-char *XMLNODE::BufAlloc(PGLOBAL g, char *p, int n)
+char *XMLNODE::BufAlloc(PGLOBAL g, const char *p, int n)
   {
   if (Len < n) {
     Len = n;

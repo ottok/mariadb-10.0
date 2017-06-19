@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, MariaDB Corporation. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,7 +56,7 @@ recovery, this function loads the pages from double write buffer into memory. */
 void
 buf_dblwr_init_or_load_pages(
 /*=========================*/
-	os_file_t	file,
+	pfs_os_file_t	file,
 	char*		path,
 	bool		load_corrupt_pages);
 
@@ -134,11 +135,13 @@ struct buf_dblwr_t{
 	ulint		b_reserved;/*!< number of slots currently reserved
 				for batch flush. */
 	os_event_t	b_event;/*!< event where threads wait for a
-				batch flush to end. */
+				batch flush to end;
+				os_event_set() and os_event_reset()
+				are protected by buf_dblwr_t::mutex */
 	ulint		s_reserved;/*!< number of slots currently
 				reserved for single page flushes. */
 	os_event_t	s_event;/*!< event where threads wait for a
-				single page flush slot. */
+				single page flush slot. Protected by mutex. */
 	bool*		in_use;	/*!< flag used to indicate if a slot is
 				in use. Only used for single page
 				flushes. */

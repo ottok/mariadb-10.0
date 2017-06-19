@@ -1,11 +1,11 @@
 /************* TabVct C++ Program Source Code File (.CPP) **************/
 /* PROGRAM NAME: TABVCT                                                */
 /* -------------                                                       */
-/*  Version 3.8                                                        */
+/*  Version 3.9                                                        */
 /*                                                                     */
 /* COPYRIGHT:                                                          */
 /* ----------                                                          */
-/*  (C) Copyright to the author Olivier BERTRAND          1999-2015    */
+/*  (C) Copyright to the author Olivier BERTRAND          1999-2017    */
 /*                                                                     */
 /* WHAT THIS PROGRAM DOES:                                             */
 /* -----------------------                                             */
@@ -174,7 +174,7 @@ bool VCTDEF::Erase(char *filename)
 /***********************************************************************/
 int VCTDEF::MakeFnPattern(char *fpat)
   {
-  char    pat[8];
+  char    pat[16];
 #if defined(__WIN__)
   char    drive[_MAX_DRIVE];
 #else
@@ -241,7 +241,7 @@ PTDB VCTDEF::GetTable(PGLOBAL g, MODE mode)
   /*********************************************************************/
   if (mode != MODE_INSERT)
     if (tdbp->GetBlockValues(g))
-      PushWarning(g, (PTDBASE)tdbp);
+      PushWarning(g, tdbp);
 //    return NULL;            // causes a crash when deleting index
 
   return tdbp;
@@ -263,7 +263,7 @@ TDBVCT::TDBVCT(PGLOBAL g, PTDBVCT tdbp) : TDBFIX(g, tdbp)
   } // end of TDBVCT copy constructor
 
 // Method
-PTDB TDBVCT::CopyOne(PTABS t)
+PTDB TDBVCT::Clone(PTABS t)
   {
   PTDB    tp;
   PVCTCOL cp1, cp2;
@@ -277,7 +277,7 @@ PTDB TDBVCT::CopyOne(PTABS t)
     } // endfor cp1
 
   return tp;
-  } // end of CopyOne
+  } // end of Clone
 
 /***********************************************************************/
 /*  Allocate VCT column description block.                             */
@@ -490,15 +490,15 @@ void VCTCOL::ReadBlock(PGLOBAL g)
 #if defined(_DEBUG)
   if (!Blk) {
     strcpy(g->Message, MSG(TO_BLK_IS_NULL));
-    longjmp(g->jumper[g->jump_level], 58);
-    } // endif
+		throw 58;
+	} // endif
 #endif
 
   /*********************************************************************/
   /*  Read column block according to used access method.               */
   /*********************************************************************/
   if (txfp->ReadBlock(g, this))
-    longjmp(g->jumper[g->jump_level], 6);
+		throw 6;
 
   ColBlk = txfp->CurBlk;
   ColPos = -1;                       // Any invalid position
@@ -518,15 +518,15 @@ void VCTCOL::WriteBlock(PGLOBAL g)
 #if defined(_DEBUG)
     if (!Blk) {
       strcpy(g->Message, MSG(BLK_IS_NULL));
-      longjmp(g->jumper[g->jump_level], 56);
-      } // endif
+			throw 56;
+		} // endif
 #endif
 
     /*******************************************************************/
     /*  Write column block according to used access method.            */
     /*******************************************************************/
     if (txfp->WriteBlock(g, this))
-      longjmp(g->jumper[g->jump_level], 6);
+			throw 6;
 
     Modif = 0;
     } // endif Modif
