@@ -15,7 +15,7 @@
 
 
 #define PLUGIN_VERSION 0x104
-#define PLUGIN_STR_VERSION "1.4.0"
+#define PLUGIN_STR_VERSION "1.4.1"
 
 #define _my_thread_var loc_thread_var
 
@@ -156,10 +156,8 @@ static File loc_open(const char *FileName, int Flags)
   File fd;
 #if defined(_WIN32)
   fd= my_win_open(FileName, Flags);
-#elif !defined(NO_OPEN_3)
-  fd = open(FileName, Flags, my_umask);     /* Normal unix */
 #else
-  fd = open((char *) FileName, Flags);
+  fd = open(FileName, Flags, my_umask);
 #endif
   my_errno= errno;
   return fd;
@@ -1043,6 +1041,7 @@ static int start_logging()
     error_header();
     fprintf(stderr, "logging started to the file %s.\n", alt_fname);
     strncpy(current_log_buf, alt_fname, sizeof(current_log_buf));
+    current_log_buf[sizeof(current_log_buf)-1]= 0;
   }
   else if (output_type == OUTPUT_SYSLOG)
   {
@@ -2295,10 +2294,10 @@ typedef struct loc_system_variables
 } LOC_SV;
 
 
+static int init_done= 0;
+
 static int server_audit_init(void *p __attribute__((unused)))
 {
-  const void *my_hash_init_ptr;
-
   if (!serv_ver)
   {
 #ifdef _WIN32
@@ -2307,11 +2306,16 @@ static int server_audit_init(void *p __attribute__((unused)))
     serv_ver= server_version;
 #endif /*_WIN32*/
   }
-  my_hash_init_ptr= dlsym(RTLD_DEFAULT, "_my_hash_init");
-  if (!my_hash_init_ptr)
+  if (!mysql_57_started)
   {
-    maria_above_5= 1;
-    my_hash_init_ptr= dlsym(RTLD_DEFAULT, "my_hash_init2");
+    const void *my_hash_init_ptr= dlsym(RTLD_DEFAULT, "_my_hash_init");
+    if (!my_hash_init_ptr)
+    {
+      maria_above_5= 1;
+      my_hash_init_ptr= dlsym(RTLD_DEFAULT, "my_hash_init2");
+    }
+    if (!my_hash_init_ptr)
+      return 1;
   }
 
   if(!(int_mysql_data_home= dlsym(RTLD_DEFAULT, "mysql_data_home")))
@@ -2320,7 +2324,7 @@ static int server_audit_init(void *p __attribute__((unused)))
       int_mysql_data_home= &default_home;
   }
 
-  if (!serv_ver || !my_hash_init_ptr)
+  if (!serv_ver)
     return 1;
 
   if (!started_mysql)
@@ -2400,6 +2404,7 @@ static int server_audit_init(void *p __attribute__((unused)))
   if (logging)
     start_logging();
 
+  init_done= 1;
   return 0;
 }
 
@@ -2415,6 +2420,10 @@ static int server_audit_init_mysql(void *p)
 
 static int server_audit_deinit(void *p __attribute__((unused)))
 {
+  if (!init_done)
+    return 0;
+
+  init_done= 0;
   coll_free(&incl_user_coll);
   coll_free(&excl_user_coll);
 
@@ -2562,6 +2571,7 @@ static void update_file_path(MYSQL_THD thd,
   }
 
   strncpy(path_buffer, new_name, sizeof(path_buffer));
+  path_buffer[sizeof(path_buffer)-1]= 0;
   file_path= path_buffer;
 exit_func:
   internal_stop_logging= 0;
@@ -2614,6 +2624,7 @@ static void update_incl_users(MYSQL_THD thd,
     flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
   strncpy(incl_user_buffer, new_users, sizeof(incl_user_buffer));
+  incl_user_buffer[sizeof(incl_user_buffer)-1]= 0;
   incl_users= incl_user_buffer;
   user_coll_fill(&incl_user_coll, incl_users, &excl_user_coll, 1);
   error_header();
@@ -2632,6 +2643,7 @@ static void update_excl_users(MYSQL_THD thd  __attribute__((unused)),
     flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
   strncpy(excl_user_buffer, new_users, sizeof(excl_user_buffer));
+  excl_user_buffer[sizeof(excl_user_buffer)-1]= 0;
   excl_users= excl_user_buffer;
   user_coll_fill(&excl_user_coll, excl_users, &incl_user_coll, 0);
   error_header();
@@ -2763,6 +2775,7 @@ static void update_syslog_ident(MYSQL_THD thd  __attribute__((unused)),
 {
   char *new_ident= (*(char **) save) ? *(char **) save : empty_str;
   strncpy(syslog_ident_buffer, new_ident, sizeof(syslog_ident_buffer));
+  syslog_ident_buffer[sizeof(syslog_ident_buffer)-1]= 0;
   syslog_ident= syslog_ident_buffer;
   error_header();
   fprintf(stderr, "SYSYLOG ident was changed to '%s'\n", syslog_ident);
@@ -2837,13 +2850,15 @@ void __attribute__ ((constructor)) audit_plugin_so_init(void)
       if (sc >= 24)
         use_event_data_for_disconnect= 1;
     }
-    else if (serv_ver[0] == '5' && serv_ver[2] == '7')
+    else if ((serv_ver[0] == '5' && serv_ver[2] == '7') ||
+             (serv_ver[0] == '8' && serv_ver[2] == '0'))
     {
       mysql_57_started= 1;
       _mysql_plugin_declarations_[0].info= mysql_v4_descriptor;
       use_event_data_for_disconnect= 1;
     }
-    MYSQL_SYSVAR_NAME(loc_info).flags= PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC;
+    MYSQL_SYSVAR_NAME(loc_info).flags= PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL |
+      PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC;
   }
 
   memset(locinfo_ini_value, 'O', sizeof(locinfo_ini_value)-1);

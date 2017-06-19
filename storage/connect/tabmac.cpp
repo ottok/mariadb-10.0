@@ -12,7 +12,7 @@
 #include "global.h"
 #include "plgdbsem.h"
 //#include "catalog.h"
-#include "reldef.h"
+//#include "reldef.h"
 #include "xtable.h"
 #include "colblk.h"
 #include "tabmac.h"
@@ -329,7 +329,7 @@ void MACCOL::ReadColumn(PGLOBAL g)
         n = 0;
         break;
       default:
-        p = "";
+        p = PlugDup(g, "");
       } // endswitch Flag
 
   } else switch (Flag) {

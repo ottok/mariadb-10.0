@@ -1,7 +1,7 @@
 /************ Jdbconn C++ Functions Source Code File (.CPP) ************/
-/*  Name: JDBCONN.CPP  Version 1.0                                     */
+/*  Name: JDBCONN.CPP  Version 1.1                                     */
 /*                                                                     */
-/*  (C) Copyright to the author Olivier BERTRAND          2016         */
+/*  (C) Copyright to the author Olivier BERTRAND          2016-2017    */
 /*                                                                     */
 /*  This file contains the JDBC connection classes functions.          */
 /***********************************************************************/
@@ -45,9 +45,9 @@
 #include "plgdbsem.h"
 #include "xobject.h"
 #include "xtable.h"
+#include "tabext.h"
 #include "tabjdbc.h"
 //#include "jdbconn.h"
-//#include "plgcnx.h"                       // For DB types
 #include "resource.h"
 #include "valblk.h"
 #include "osutil.h"
@@ -189,8 +189,8 @@ int TranslateJDBCType(int stp, char *tn, int prec, int& len, char& v)
 /***********************************************************************/
 /*  Allocate the structure used to refer to the result set.            */
 /***********************************************************************/
-static JCATPARM *AllocCatInfo(PGLOBAL g, JCATINFO fid, char *db,
-	char *tab, PQRYRES qrp)
+static JCATPARM *AllocCatInfo(PGLOBAL g, JCATINFO fid, PCSZ db,
+	                            PCSZ tab, PQRYRES qrp)
 {
 	JCATPARM *cap;
 
@@ -213,7 +213,7 @@ static JCATPARM *AllocCatInfo(PGLOBAL g, JCATINFO fid, char *db,
 /*  JDBCColumns: constructs the result blocks containing all columns   */
 /*  of a JDBC table that will be retrieved by GetData commands.        */
 /***********************************************************************/
-PQRYRES JDBCColumns(PGLOBAL g, char *db, char *table, char *colpat,
+PQRYRES JDBCColumns(PGLOBAL g, PCSZ db, PCSZ table, PCSZ colpat,
 	                             int maxres, bool info, PJPARM sjp)
 {
 	int  buftyp[] = {TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_STRING,
@@ -316,15 +316,23 @@ PQRYRES JDBCColumns(PGLOBAL g, char *db, char *table, char *colpat,
 /*  JDBCSrcCols: constructs the result blocks containing the              */
 /*  description of all the columns of a Srcdef option.                    */
 /**************************************************************************/
-PQRYRES JDBCSrcCols(PGLOBAL g, char *src, PJPARM sjp)
+PQRYRES JDBCSrcCols(PGLOBAL g, PCSZ src, PJPARM sjp)
 {
+	char    *sqry;
 	PQRYRES  qrp;
 	JDBConn *jcp = new(g)JDBConn(g, NULL);
 
 	if (jcp->Open(sjp))
 		return NULL;
 
-	qrp = jcp->GetMetaData(g, src);
+	if (strstr(src, "%s")) {
+		// Place holder for an eventual where clause
+		sqry = (char*)PlugSubAlloc(g, NULL, strlen(src) + 2);
+		sprintf(sqry, src, "1=1");			 // dummy where clause
+	} else
+		sqry = (char*)src;
+
+	qrp = jcp->GetMetaData(g, sqry);
 	jcp->Close();
 	return qrp;
 } // end of JDBCSrcCols
@@ -333,7 +341,7 @@ PQRYRES JDBCSrcCols(PGLOBAL g, char *src, PJPARM sjp)
 /*  JDBCTables: constructs the result blocks containing all tables in     */
 /*  an JDBC database that will be retrieved by GetData commands.          */
 /**************************************************************************/
-PQRYRES JDBCTables(PGLOBAL g, char *db, char *tabpat, char *tabtyp,
+PQRYRES JDBCTables(PGLOBAL g, PCSZ db, PCSZ tabpat, PCSZ tabtyp,
 	                            int maxres, bool info, PJPARM sjp)
 {
 	int      buftyp[] = {TYPE_STRING, TYPE_STRING, TYPE_STRING,
@@ -818,6 +826,11 @@ int JDBConn::Open(PJPARM sop)
 		jpop->Append(GetPluginDir());
 		jpop->Append("JdbcInterface.jar");
 
+		// All wrappers are pre-compiled in JavaWrappers.jar in the plugin dir
+		jpop->Append(sep);
+		jpop->Append(GetPluginDir());
+		jpop->Append("JavaWrappers.jar");
+
 		//================== prepare loading of Java VM ============================
 		JavaVMInitArgs vm_args;                        // Initialization arguments
 		JavaVMOption* options = new JavaVMOption[N];   // JVM invocation options
@@ -1046,7 +1059,7 @@ int JDBConn::Open(PJPARM sop)
 /***********************************************************************/
 /*  Execute an SQL command.                                            */
 /***********************************************************************/
-int JDBConn::ExecSQLcommand(char *sql)
+int JDBConn::ExecSQLcommand(PCSZ sql)
 {
 	int      rc;
 	jint     n;
@@ -1129,7 +1142,7 @@ int JDBConn::Fetch(int pos)
 /***********************************************************************/
 /*  Restart from beginning of result set                               */
 /***********************************************************************/
-int JDBConn::Rewind(char *sql)
+int JDBConn::Rewind(PCSZ sql)
 {
 	int rbuf = -1;
 
@@ -1156,6 +1169,9 @@ void JDBConn::Close()
 	if (m_Opened) {
 		jint      rc;
 		jmethodID did = nullptr;
+
+		// Could have been detached in case of join
+		rc = jvm->AttachCurrentThread((void**)&env, nullptr);
 
 		if (gmID(m_G, did, "JdbcDisconnect", "()I"))
 			printf("%s\n", Msg);
@@ -1184,7 +1200,7 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 	if (rank == 0)
 		if (!name || (jn = env->NewStringUTF(name)) == nullptr) {
 			sprintf(g->Message, "Fail to allocate jstring %s", SVP(name));
-			longjmp(g->jumper[g->jump_level], TYPE_AM_JDBC);
+			throw TYPE_AM_JDBC;
 		}	// endif name
 
 	// Returns 666 is case of error
@@ -1192,7 +1208,7 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 
 	if (Check((ctyp == 666) ? -1 : 1)) {
 		sprintf(g->Message, "Getting ctyp: %s", Msg);
-		longjmp(g->jumper[g->jump_level], TYPE_AM_JDBC);
+		throw TYPE_AM_JDBC;
 	} // endif Check
 
 	if (val->GetNullable())
@@ -1211,7 +1227,8 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 	case 12:          // VARCHAR
 	case -1:          // LONGVARCHAR
 	case 1:           // CHAR
-		if (jb)
+  case 3:           // DECIMAL
+		if (jb && ctyp != 3)
 			cn = (jstring)jb;
 		else if (!gmID(g, chrfldid, "StringField", "(ILjava/lang/String;)Ljava/lang/String;"))
 			cn = (jstring)env->CallObjectMethod(job, chrfldid, (jint)rank, jn);
@@ -1237,7 +1254,7 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 		break;
 	case 8:           // DOUBLE
 	case 2:           // NUMERIC
-	case 3:           // DECIMAL
+//case 3:           // DECIMAL
 		if (!gmID(g, dblfldid, "DoubleField", "(ILjava/lang/String;)D"))
 			val->SetValue((double)env->CallDoubleMethod(job, dblfldid, rank, jn));
 		else
@@ -1298,7 +1315,7 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 			env->DeleteLocalRef(jn);
 
 		sprintf(g->Message, "SetColumnValue: %s rank=%d ctyp=%d", Msg, rank, (int)ctyp);
-		longjmp(g->jumper[g->jump_level], TYPE_AM_JDBC);
+		throw TYPE_AM_JDBC;
 	} // endif Check
 
 	if (rank == 0)
@@ -1309,7 +1326,7 @@ void JDBConn::SetColumnValue(int rank, PSZ name, PVAL val)
 /***********************************************************************/
 /*  Prepare an SQL statement for insert.                               */
 /***********************************************************************/
-bool JDBConn::PrepareSQL(char *sql)
+bool JDBConn::PrepareSQL(PCSZ sql)
 {
 	bool		 b = true;
 	PGLOBAL& g = m_G;
@@ -1332,7 +1349,7 @@ bool JDBConn::PrepareSQL(char *sql)
 /***********************************************************************/
 /*  Execute an SQL query that returns a result set.                    */
 /***********************************************************************/
-int JDBConn::ExecuteQuery(char *sql)
+int JDBConn::ExecuteQuery(PCSZ sql)
 {
 	int			 rc = RC_FX;
 	jint     ncol;
@@ -1360,7 +1377,7 @@ int JDBConn::ExecuteQuery(char *sql)
 /***********************************************************************/
 /*  Execute an SQL query and get the affected rows.                    */
 /***********************************************************************/
-int JDBConn::ExecuteUpdate(char *sql)
+int JDBConn::ExecuteUpdate(PCSZ sql)
 {
 	int      rc = RC_FX;
 	jint     n;
@@ -1388,7 +1405,7 @@ int JDBConn::ExecuteUpdate(char *sql)
 /***********************************************************************/
 /*  Get the number of lines of the result set.                         */
 /***********************************************************************/
-int JDBConn::GetResultSize(char *sql, JDBCCOL *colp)
+int JDBConn::GetResultSize(PCSZ sql, JDBCCOL *colp)
 {
 	int rc, n = 0;
 
@@ -1626,7 +1643,7 @@ bool JDBConn::SetParam(JDBCCOL *colp)
 	/*  GetMetaData: constructs the result blocks containing the              */
 	/*  description of all the columns of an SQL command.                     */
 	/**************************************************************************/
-	PQRYRES JDBConn::GetMetaData(PGLOBAL g, char *src)
+	PQRYRES JDBConn::GetMetaData(PGLOBAL g, PCSZ src)
 	{
 		static int  buftyp[] = {TYPE_STRING, TYPE_INT, TYPE_INT,
 			                      TYPE_INT,    TYPE_INT};
@@ -1828,7 +1845,7 @@ bool JDBConn::SetParam(JDBCCOL *colp)
 		PGLOBAL& g = m_G;
 //	void    *buffer;
 		int      i, ncol;
-		PSZ      fnc = "Unknown";
+		PCSZ     fnc = "Unknown";
 		uint     n;
 		short    len, tp;
 		int      crow = 0;

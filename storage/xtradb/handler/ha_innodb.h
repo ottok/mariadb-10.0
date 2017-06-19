@@ -144,6 +144,8 @@ class ha_innobase: public handler
 	int index_first(uchar * buf);
 	int index_last(uchar * buf);
 
+	bool has_gap_locks() const { return true; }
+
 	int rnd_init(bool scan);
 	int rnd_end();
 	int rnd_next(uchar *buf);
@@ -482,7 +484,7 @@ innobase_index_name_is_reserved(
 	const KEY*	key_info,	/*!< in: Indexes to be created */
 	ulint		num_of_keys)	/*!< in: Number of indexes to
 					be created. */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
 
 /*****************************************************************//**
 Determines InnoDB table flags.

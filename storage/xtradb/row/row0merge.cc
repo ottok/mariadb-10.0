@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2017, MariaDB Corporation.
+Copyright (c) 2014, 2017, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -96,7 +96,8 @@ row_merge_tuple_print(
 			}
 			ut_print_buf(f, dfield_get_data(field), len);
 			if (len != field_len) {
-				fprintf(f, " (total %lu bytes)", field_len);
+				fprintf(f, " (total " ULINTPF " bytes)",
+					field_len);
 			}
 		}
 	}
@@ -789,9 +790,9 @@ row_merge_buf_write(
 		ut_ad(b < &block[srv_sort_buf_size]);
 #ifdef UNIV_DEBUG
 		if (row_merge_print_write) {
-			fprintf(stderr, "row_merge_buf_write %p,%d,%lu %lu",
-				(void*) b, of->fd, (ulong) of->offset,
-				(ulong) i);
+			fprintf(stderr, "row_merge_buf_write %p,%d,"
+				ULINTPF " " ULINTPF,
+				(void*) b, of->fd, of->offset, i);
 			row_merge_tuple_print(stderr, entry, n_fields);
 		}
 #endif /* UNIV_DEBUG */
@@ -808,8 +809,8 @@ row_merge_buf_write(
 #endif /* UNIV_DEBUG_VALGRIND */
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_buf_write %p,%d,%lu EOF\n",
-			(void*) b, of->fd, (ulong) of->offset);
+		fprintf(stderr, "row_merge_buf_write %p,%d," ULINTPF " EOF\n",
+			(void*) b, of->fd, of->offset);
 	}
 #endif /* UNIV_DEBUG */
 }
@@ -865,20 +866,14 @@ row_merge_read(
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_read) {
-		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
+		fprintf(stderr, "row_merge_read fd=%d ofs=" ULINTPF "\n",
+			fd, offset);
 	}
 #endif /* UNIV_DEBUG */
 
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block_read) {
-		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
-	}
-#endif /* UNIV_DEBUG */
-
-	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
+	success = os_file_read_no_error_handling_int_fd(fd, buf,
 						 ofs, srv_sort_buf_size);
+
 #ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
 	posix_fadvise(fd, ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
@@ -912,12 +907,12 @@ row_merge_write(
 
 	DBUG_EXECUTE_IF("row_merge_write_failure", return(FALSE););
 
-	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf, ofs, buf_len);
+	ret = os_file_write_int_fd("(merge)", fd, buf, ofs, buf_len);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
-		fprintf(stderr, "row_merge_write fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
+		fprintf(stderr, "row_merge_write fd=%d ofs=" ULINTPF "\n",
+			fd, offset);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -952,14 +947,8 @@ row_merge_read_rec(
 	ulint	data_size;
 	ulint	avail_size;
 
-	ut_ad(block);
-	ut_ad(buf);
 	ut_ad(b >= &block[0]);
 	ut_ad(b < &block[srv_sort_buf_size]);
-	ut_ad(index);
-	ut_ad(foffs);
-	ut_ad(mrec);
-	ut_ad(offsets);
 
 	ut_ad(*offsets == 1 + REC_OFFS_HEADER_SIZE
 	      + dict_index_get_n_fields(index));
@@ -971,9 +960,10 @@ row_merge_read_rec(
 		*mrec = NULL;
 #ifdef UNIV_DEBUG
 		if (row_merge_print_read) {
-			fprintf(stderr, "row_merge_read %p,%p,%d,%lu EOF\n",
+			fprintf(stderr, "row_merge_read %p,%p,%d," ULINTPF
+				" EOF\n",
 				(const void*) b, (const void*) block,
-				fd, (ulong) *foffs);
+				fd, *foffs);
 		}
 #endif /* UNIV_DEBUG */
 		return(NULL);
@@ -1088,9 +1078,9 @@ err_exit:
 func_exit:
 #ifdef UNIV_DEBUG
 	if (row_merge_print_read) {
-		fprintf(stderr, "row_merge_read %p,%p,%d,%lu ",
+		fprintf(stderr, "row_merge_read %p,%p,%d," ULINTPF " ",
 			(const void*) b, (const void*) block,
-			fd, (ulong) *foffs);
+			fd, *foffs);
 		rec_print_comp(stderr, *mrec, offsets);
 		putc('\n', stderr);
 	}
@@ -1124,8 +1114,8 @@ row_merge_write_rec_low(
 	ut_ad(e == rec_offs_extra_size(offsets) + 1);
 
 	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_write %p,%d,%lu ",
-			(void*) b, fd, (ulong) foffs);
+		fprintf(stderr, "row_merge_write %p,%d," ULINTPF " ",
+			(void*) b, fd, foffs);
 		rec_print_comp(stderr, mrec, offsets);
 		putc('\n', stderr);
 	}
@@ -1227,8 +1217,8 @@ row_merge_write_eof(
 	ut_ad(foffs);
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_write %p,%p,%d,%lu EOF\n",
-			(void*) b, (void*) block, fd, (ulong) *foffs);
+		fprintf(stderr, "row_merge_write %p,%p,%d," ULINTPF " EOF\n",
+			(void*) b, (void*) block, fd, *foffs);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2073,11 +2063,12 @@ row_merge_blocks(
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block) {
 		fprintf(stderr,
-			"row_merge_blocks fd=%d ofs=%lu + fd=%d ofs=%lu"
-			" = fd=%d ofs=%lu\n",
-			file->fd, (ulong) *foffs0,
-			file->fd, (ulong) *foffs1,
-			of->fd, (ulong) of->offset);
+			"row_merge_blocks fd=%d ofs=" ULINTPF
+			" + fd=%d ofs=" ULINTPF
+			" = fd=%d ofs=" ULINTPF "\n",
+			file->fd, *foffs0,
+			file->fd, *foffs1,
+			of->fd, of->offset);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2176,10 +2167,10 @@ row_merge_blocks_copy(
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block) {
 		fprintf(stderr,
-			"row_merge_blocks_copy fd=%d ofs=%lu"
-			" = fd=%d ofs=%lu\n",
-			file->fd, (ulong) foffs0,
-			of->fd, (ulong) of->offset);
+			"row_merge_blocks_copy fd=%d ofs=" ULINTPF
+			" = fd=%d ofs=" ULINTPF "\n",
+			file->fd, *foffs0,
+			of->fd, of->offset);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -3154,14 +3145,21 @@ row_merge_file_create_low(
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_open_begin(&state, locker, innodb_file_temp_key,
-				     PSI_FILE_OPEN,
-				     "Innodb Merge Temp File",
-				     __FILE__, __LINE__);
+	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
+			       &state, innodb_file_temp_key, PSI_FILE_OPEN,
+			       "Innodb Merge Temp File", &locker);
+	if (locker != NULL) {
+		PSI_FILE_CALL(start_file_open_wait)(locker,
+						    __FILE__,
+						    __LINE__);
+	}
 #endif
 	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
-	register_pfs_file_open_end(locker, fd);
+	if (locker != NULL) {
+		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(
+			      locker, fd);
+	}
 #endif
 
 	if (fd < 0) {
@@ -3208,15 +3206,20 @@ row_merge_file_destroy_low(
 #ifdef UNIV_PFS_IO
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_io_begin(&state, locker,
-				   fd, 0, PSI_FILE_CLOSE,
-				   __FILE__, __LINE__);
+	locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(
+			       &state, fd, PSI_FILE_CLOSE);
+	if (locker != NULL) {
+		PSI_FILE_CALL(start_file_wait)(
+			      locker, 0, __FILE__, __LINE__);
+	}
 #endif
 	if (fd >= 0) {
 		close(fd);
 	}
 #ifdef UNIV_PFS_IO
-	register_pfs_file_io_end(locker, 0);
+	if (locker != NULL) {
+		PSI_FILE_CALL(end_file_wait)(locker, 0);
+	}
 #endif
 }
 /*********************************************************************//**
@@ -3833,8 +3836,8 @@ wait_again:
 					for (j = 0; j < FTS_NUM_AUX_INDEX;
 					     j++) {
 
-					    os_thread_join(merge_info[j]
-							   .thread_hdl);
+						os_thread_join(merge_info[j]
+							       .thread_hdl);
 					}
 				}
 			} else {

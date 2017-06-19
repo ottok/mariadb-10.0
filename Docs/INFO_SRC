@@ -1,8 +1,8 @@
-commit: 4f5338467807f099b67f07d0bfb415358222a2b1
-date: 2017-01-12 03:37:35 +0200
-build-date: 2017-01-12 02:45:24 +0100 
-short: 4f53384
+commit: 725e47bfb524f4b1d29076c8777056bedd5f00ea
+date: 2017-05-20 00:59:40 +0200
+build-date: 2017-05-20 01:04:27 +0200 
+short: 725e47b
 branch: HEAD
 
 
-MySQL source 10.0.29
+MySQL source 10.0.31

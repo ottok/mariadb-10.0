@@ -1,4 +1,4 @@
-/* Copyright (C) Olivier Bertrand 2004 - 2016
+/* Copyright (C) Olivier Bertrand 2004 - 2017
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,14 +11,14 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02111-1301 USA */
 
 /*************** Mycat CC Program Source Code File (.CC) ***************/
 /* PROGRAM NAME: MYCAT                                                 */
 /* -------------                                                       */
-/*  Version 1.5                                                        */
+/*  Version 1.6                                                        */
 /*                                                                     */
-/*  Author: Olivier Bertrand                       2012 - 2016         */
+/*  Author: Olivier Bertrand                       2012 - 2017         */
 /*                                                                     */
 /* WHAT THIS PROGRAM DOES:                                             */
 /* -----------------------                                             */
@@ -58,9 +58,10 @@
 #endif   // UNIX
 #include "global.h"
 #include "plgdbsem.h"
-#include "reldef.h"
-#include "tabcol.h"
+//#include "reldef.h"
 #include "xtable.h"
+#include "tabext.h"
+#include "tabcol.h"
 #include "filamtxt.h"
 #include "tabdos.h"
 #include "tabfmt.h"
@@ -160,7 +161,7 @@ TABTYPE GetTypeID(const char *type)
 #ifdef ZIP_SUPPORT
 								 : (!stricmp(type, "ZIP"))   ? TAB_ZIP
 #endif
-								 : (!stricmp(type, "OEM"))   ? TAB_OEM : TAB_NIY;
+		             : (!stricmp(type, "OEM"))   ? TAB_OEM : TAB_NIY;
   } // end of GetTypeID
 
 /***********************************************************************/
@@ -476,39 +477,6 @@ void MYCAT::Reset(void)
   {
   } // end of Reset
 
-#if 0
-/***********************************************************************/
-/*  This function sets the current database path.                      */
-/***********************************************************************/
-void MYCAT::SetPath(PGLOBAL g, LPCSTR *datapath, const char *path)
-	{
-	if (path) {
-		size_t len= strlen(path) + (*path != '.' ? 4 : 1);
-		char  *buf= (char*)PlugSubAlloc(g, NULL, len);
-		
-		if (PlugIsAbsolutePath(path))
-		{
-		  strcpy(buf, path);
-		  *datapath= buf;
-		  return;
-		}
-
-		if (*path != '.') {
-#if defined(__WIN__)
-			char *s= "\\";
-#else   // !__WIN__
-			char *s= "/";
-#endif  // !__WIN__
-			strcat(strcat(strcat(strcpy(buf, "."), s), path), s);
-		} else
-			strcpy(buf, path);
-
-		*datapath= buf;
-		} // endif path
-
-	} // end of SetDataPath
-#endif // 0
-
 /***********************************************************************/
 /*  GetTableDesc: retrieve a table descriptor.                         */
 /*  Look for a table descriptor matching the name and type.            */
@@ -559,13 +527,13 @@ PRELDEF MYCAT::MakeTableDesc(PGLOBAL g, PTABLE tablep, LPCSTR am)
     case TAB_XML: tdp= new(g) XMLDEF;   break;
 #endif   // XML_SUPPORT
 #if defined(VCT_SUPPORT)
-		case TAB_VEC: tdp = new(g)VCTDEF;   break;
+		case TAB_VEC: tdp = new(g) VCTDEF;  break;
 #endif   // VCT_SUPPORT
 #if defined(ODBC_SUPPORT)
     case TAB_ODBC: tdp= new(g) ODBCDEF; break;
 #endif   // ODBC_SUPPORT
 #if defined(JDBC_SUPPORT)
-		case TAB_JDBC: tdp= new(g)JDBCDEF; break;
+		case TAB_JDBC: tdp= new(g) JDBCDEF; break;
 #endif   // JDBC_SUPPORT
 #if defined(__WIN__)
     case TAB_MAC: tdp= new(g) MACDEF;   break;

@@ -1,9 +1,9 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
-Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
+Copyright (c) 2013, 2017, MariaDB Corporation.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -55,11 +55,10 @@ Created 10/10/1995 Heikki Tuuri
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
-	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
-	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
-	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
 	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
-	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
+	typedef simple_counter<lsn_t> lsn_ctr_1_t;
+	typedef simple_counter<ulint> ulint_ctr_1_t;
+	typedef simple_counter<ib_int64_t> ib_int64_ctr_1_t;
 
 	/** Count the amount of data written in total (in bytes) */
 	ulint_ctr_1_t		data_written;
@@ -73,8 +72,9 @@ struct srv_stats_t {
 	/** Amount of data written to the log files in bytes */
 	lsn_ctr_1_t		os_log_written;
 
-	/** Number of writes being done to the log files */
-	lint_ctr_1_t		os_log_pending_writes;
+	/** Number of writes being done to the log files.
+	Protected by log_sys->write_mutex. */
+	ulint_ctr_1_t		os_log_pending_writes;
 
 	/** We increase this counter, when we don't have enough
 	space in the log buffer and have to flush it */
@@ -113,7 +113,7 @@ struct srv_stats_t {
 	ulint_ctr_1_t		n_lock_wait_count;
 
 	/** Number of threads currently waiting on database locks */
-	lint_ctr_1_t		n_lock_wait_current_count;
+	simple_counter<ulint, true> n_lock_wait_current_count;
 
 	/** Number of rows read. */
 	ulint_ctr_64_t		n_rows_read;
@@ -152,13 +152,16 @@ extern const char*	srv_main_thread_op_info;
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
 extern const char	srv_mysql50_table_name_prefix[10];
 
-/* The monitor thread waits on this event. */
+/** Event to signal srv_monitor_thread. Not protected by a mutex.
+Set after setting srv_print_innodb_monitor. */
 extern os_event_t	srv_monitor_event;
 
-/* The error monitor thread waits on this event. */
+/** Event to signal the shutdown of srv_error_monitor_thread.
+Not protected by a mutex. */
 extern os_event_t	srv_error_event;
 
-/** The buffer pool dump/load thread waits on this event. */
+/** Event for waking up buf_dump_thread. Not protected by a mutex.
+Set on shutdown or by buf_dump_start() or buf_load_start(). */
 extern os_event_t	srv_buf_dump_event;
 
 /** The buffer pool dump/load file name */
@@ -419,9 +422,6 @@ extern double	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
 extern ulong	srv_force_recovery;
-#ifndef DBUG_OFF
-extern ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.
@@ -436,6 +436,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 extern my_bool			srv_stats_auto_recalc;
+extern my_bool			srv_stats_include_delete_marked;
 extern unsigned long long	srv_stats_modified_counter;
 extern my_bool			srv_stats_sample_traditional;
 
@@ -608,6 +609,11 @@ extern ulong srv_sync_array_size;
 extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads_avoided;
 
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
@@ -968,17 +974,12 @@ ulint
 srv_get_task_queue_length(void);
 /*===========================*/
 
-/*********************************************************************//**
-Releases threads of the type given from suspension in the thread table.
-NOTE! The server mutex has to be reserved by the caller!
-@return number of threads released: this may be less than n if not
-enough threads were suspended at the moment */
-UNIV_INTERN
-ulint
-srv_release_threads(
-/*================*/
-	enum srv_thread_type	type,	/*!< in: thread type */
-	ulint			n);	/*!< in: number of threads to release */
+/** Ensure that a given number of threads of the type given are running
+(or are already terminated).
+@param[in]	type	thread type
+@param[in]	n	number of threads that have to run */
+void
+srv_release_threads(enum srv_thread_type type, ulint n);
 
 /**********************************************************************//**
 Check whether any background thread are active. If so print which thread
@@ -989,12 +990,17 @@ const char*
 srv_any_background_threads_are_active(void);
 /*=======================================*/
 
-/**********************************************************************//**
-Wakeup the purge threads. */
+/** Wake up the purge threads. */
 UNIV_INTERN
 void
-srv_purge_wakeup(void);
-/*==================*/
+srv_purge_wakeup();
+
+/** Check whether given space id is undo tablespace id
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+srv_is_undo_tablespace(
+	ulint	space_id);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{
@@ -1112,6 +1118,9 @@ struct export_var_t{
 #endif /* UNIV_DEBUG */
 	ulint innodb_column_compressed;		/*!< srv_column_compressed */
 	ulint innodb_column_decompressed;	/*!< srv_column_decompressed */
+
+	ulint innodb_sec_rec_cluster_reads;	/*!< srv_sec_rec_cluster_reads */
+	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
 };
 
 /** Thread slot in the thread table.  */
@@ -1152,5 +1161,13 @@ struct srv_slot_t{
 # define srv_start_raw_disk_in_use		0
 # define srv_file_per_table			1
 #endif /* !UNIV_HOTBACKUP */
+
+#ifndef DBUG_OFF
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+extern bool	srv_debug_monitor_printed;
+#else
+#define	srv_debug_monitor_printed	false
+#endif
 
 #endif

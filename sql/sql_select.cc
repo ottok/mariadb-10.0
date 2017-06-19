@@ -8443,8 +8443,6 @@ get_best_combination(JOIN *join)
   join->full_join=0;
   join->hash_join= FALSE;
 
-  used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
-
   fix_semijoin_strategies_for_picked_join_order(join);
   
   JOIN_TAB_RANGE *root_range;
@@ -8508,10 +8506,7 @@ get_best_combination(JOIN *join)
     j->bush_root_tab= sjm_nest_root;
 
     form=join->table[tablenr]=j->table;
-    used_tables|= form->map;
     form->reginfo.join_tab=j;
-    if (!*j->on_expr_ref)
-      form->reginfo.not_exists_optimize=0;	// Only with LEFT JOIN
     DBUG_PRINT("info",("type: %d", j->type));
     if (j->type == JT_CONST)
       goto loop_end;					// Handled in make_join_stat..
@@ -8537,9 +8532,6 @@ get_best_combination(JOIN *join)
                              join->best_positions[tablenr].loosescan_picker.loosescan_key);
       j->index= join->best_positions[tablenr].loosescan_picker.loosescan_key;
     }*/
-    
-    if (keyuse && create_ref_for_key(join, j, keyuse, TRUE, used_tables))
-      DBUG_RETURN(TRUE);                        // Something went wrong
 
     if ((j->type == JT_REF || j->type == JT_EQ_REF) &&
         is_hash_join_key_no(j->ref.key))
@@ -8565,6 +8557,23 @@ get_best_combination(JOIN *join)
   }
   root_range->end= j;
 
+  used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
+  for (j=join_tab, tablenr=0 ; tablenr < table_count ; tablenr++,j++)
+  {
+    if (j->bush_children)
+      j= j->bush_children->start;
+
+    used_tables|= j->table->map;
+    if (j->type != JT_CONST && j->type != JT_SYSTEM)
+    {
+      if ((keyuse= join->best_positions[tablenr].key) &&
+          create_ref_for_key(join, j, keyuse, TRUE, used_tables))
+        DBUG_RETURN(TRUE);              // Something went wrong
+    }
+    if (j->last_leaf_in_bush)
+      j= j->bush_root_tab;
+  }
+ 
   join->top_join_tab_count= join->join_tab_ranges.head()->end - 
                             join->join_tab_ranges.head()->start;
   /*
@@ -9355,7 +9364,10 @@ make_outerjoin_info(JOIN *join)
       tab->cond_equal= tbl->cond_equal;
       if (embedding && !embedding->is_active_sjm())
         tab->first_upper= embedding->nested_join->first_nested;
-    }    
+    }
+    else if (!embedding)
+      tab->table->reginfo.not_exists_optimize= 0;
+          
     for ( ; embedding ; embedding= embedding->embedding)
     {
       if (embedding->is_active_sjm())
@@ -9365,7 +9377,10 @@ make_outerjoin_info(JOIN *join)
       }
       /* Ignore sj-nests: */
       if (!(embedding->on_expr && embedding->outer_join))
+      {
+        tab->table->reginfo.not_exists_optimize= 0;
         continue;
+      }
       NESTED_JOIN *nested_join= embedding->nested_join;
       if (!nested_join->counter)
       {
@@ -9381,17 +9396,10 @@ make_outerjoin_info(JOIN *join)
       }
       if (!tab->first_inner)  
         tab->first_inner= nested_join->first_nested;
-      if (tab->table->reginfo.not_exists_optimize)
-        tab->first_inner->table->reginfo.not_exists_optimize= 1;         
       if (++nested_join->counter < nested_join->n_tables)
         break;
       /* Table tab is the last inner table for nested join. */
       nested_join->first_nested->last_inner= tab;
-      if (tab->first_inner->table->reginfo.not_exists_optimize)
-      {
-        for (JOIN_TAB *join_tab= tab->first_inner; join_tab <= tab; join_tab++)
-          join_tab->table->reginfo.not_exists_optimize= 1;
-      } 
     }
   }
   DBUG_RETURN(FALSE);
@@ -9479,12 +9487,20 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     /*
       Step #2: Extract WHERE/ON parts
     */
+    uint i;
+    for (i= join->top_join_tab_count - 1; i >= join->const_tables; i--)
+    {
+      if (!join->join_tab[i].bush_children)
+        break;
+    }
+    uint last_top_base_tab_idx= i;
+
     table_map save_used_tables= 0;
     used_tables=((select->const_tables=join->const_table_map) |
 		 OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
     JOIN_TAB *tab;
     table_map current_map;
-    uint i= join->const_tables;
+    i= join->const_tables;
     for (tab= first_depth_first_tab(join); tab;
          tab= next_depth_first_tab(join, tab), i++)
     {
@@ -9522,8 +9538,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
       */
-      if (tab == join->join_tab + join->top_join_tab_count - 1)
-	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
+      if (tab == join->join_tab + last_top_base_tab_idx)
+        current_map|= RAND_TABLE_BIT;
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
@@ -9561,10 +9577,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           save_used_tables= 0;
         }
         else
-         {
-	  tmp= make_cond_for_table(thd, cond, used_tables, current_map, i,
+        {
+          tmp= make_cond_for_table(thd, cond, used_tables, current_map, i,
                                    FALSE, FALSE);
-         }
+        }
         /* Add conditions added by add_not_null_conds(). */
         if (tab->select_cond)
           add_cond_and_fix(thd, &tmp, tab->select_cond);
@@ -10152,7 +10168,7 @@ void JOIN::drop_unused_derived_keys()
       continue;
     if (!table->pos_in_table_list->is_materialized_derived())
       continue;
-    if (table->max_keys > 1)
+    if (table->max_keys > 1 && !tab->is_ref_for_hash_join())
       table->use_index(tab->ref.key);
     if (table->s->keys)
     {
@@ -15510,7 +15526,9 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   if (new_field)
     new_field->init(table);
     
-  if (copy_func && item->real_item()->is_result_field())
+  if (copy_func &&
+      (item->is_result_field() || 
+       (item->real_item()->is_result_field())))
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
@@ -17982,32 +18000,41 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+        /*
+          Check whether 'not exists' optimization can be used here.
+          If  tab->table->reginfo.not_exists_optimize is set to true
+          then WHERE contains a conjunctive predicate IS NULL over
+          a non-nullable field of tab. When activated this predicate
+          will filter out all records with matches for the left part
+          of the outer join whose inner tables start from the
+          first_unmatched table and include table tab. To safely use
+          'not exists' optimization we have to check that the
+          IS NULL predicate is really activated, i.e. all guards
+          that wrap it are in the 'open' state. 
+	*/  
+	bool not_exists_opt_is_applicable=
+               tab->table->reginfo.not_exists_optimize;
+	for (JOIN_TAB *first_upper= first_unmatched->first_upper;
+             not_exists_opt_is_applicable && first_upper;
+             first_upper= first_upper->first_upper)
+        {
+          if (!first_upper->found)
+            not_exists_opt_is_applicable= false;
+        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
         */
-        /*
-          not_exists_optimize has been created from a
-          select_cond containing 'is_null'. This 'is_null'
-          predicate is still present on any 'tab' with
-          'not_exists_optimize'. Furthermore, the usual rules
-          for condition guards also applies for
-          'not_exists_optimize' -> When 'is_null==false' we
-          know all cond. guards are open and we can apply
-          the 'not_exists_optimize'.
-        */
-        DBUG_ASSERT(!(tab->table->reginfo.not_exists_optimize &&
-                     !tab->select_cond));
-
         if (tab->select_cond && !tab->select_cond->val_int())
         {
           /* The condition attached to table tab is false */
-
           if (tab == join_tab)
           {
             found= 0;
+            if (not_exists_opt_is_applicable)
+              DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
           }            
           else
           {
@@ -18016,21 +18043,10 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
               not to the last table of the current nest level.
             */
             join->return_tab= tab;
-          }
-
-          if (tab->table->reginfo.not_exists_optimize)
-          {
-            /*
-              When not_exists_optimize is set: No need to further
-              explore more rows of 'tab' for this partial result.
-              Any found 'tab' matches are known to evaluate to 'false'.
-              Returning .._NO_MORE_ROWS will skip rem. 'tab' rows.
-            */
-            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-          }
-          else if (tab != join_tab)
-          {
-            DBUG_RETURN(NESTED_LOOP_OK);
+            if (not_exists_opt_is_applicable)
+              DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+            else
+              DBUG_RETURN(NESTED_LOOP_OK);
           }
         }
       }

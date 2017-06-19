@@ -5,7 +5,7 @@
 /*                                                                          */
 /* COPYRIGHT:                                                               */
 /* ----------                                                               */
-/*  (C) Copyright to the author Olivier BERTRAND          2005-2015         */
+/*  (C) Copyright to the author Olivier BERTRAND          2005-2017         */
 /*                                                                          */
 /* WHAT THIS PROGRAM DOES:                                                  */
 /* -----------------------                                                  */
@@ -128,7 +128,7 @@ typedef struct _descriptor {
 /*      Moves file pointer to byte 32; fills buffer at buf with             */
 /*  first 32 bytes of file.                                                 */
 /****************************************************************************/
-static int dbfhead(PGLOBAL g, FILE *file, PSZ fn, DBFHEADER *buf)
+static int dbfhead(PGLOBAL g, FILE *file, PCSZ fn, DBFHEADER *buf)
   {
   char endmark[2];
   int  dbc = 2, rc = RC_OK;
@@ -186,7 +186,7 @@ static int dbfhead(PGLOBAL g, FILE *file, PSZ fn, DBFHEADER *buf)
 /*  DBFColumns: constructs the result blocks containing the description     */
 /*  of all the columns of a DBF file that will be retrieved by #GetData.    */
 /****************************************************************************/
-PQRYRES DBFColumns(PGLOBAL g, char *dp, const char *fn, bool info)
+PQRYRES DBFColumns(PGLOBAL g, PCSZ dp, PCSZ fn, bool info)
   {
   int  buftyp[] = {TYPE_STRING, TYPE_SHORT, TYPE_STRING,
                    TYPE_INT,    TYPE_INT,   TYPE_SHORT};
@@ -281,15 +281,25 @@ PQRYRES DBFColumns(PGLOBAL g, char *dp, const char *fn, bool info)
     /************************************************************************/
     switch (thisfield.Type) {
       case 'C':                      // Characters
-      case 'L':                      // Logical 'T' or 'F'
-        type = TYPE_STRING;
+      case 'L':                      // Logical 'T' or 'F' or space
+				type = TYPE_STRING;
+				break;
+			case 'M':                      // Memo		a .DBT block number
+			case 'B':                      // Binary	a .DBT block number
+			case 'G':                      // Ole			a .DBT block number
+				type = TYPE_STRING;
         break;
+			//case 'I':											 // Long
+			//case '+':											 // Autoincrement
+			//	type = TYPE_INT;
+			//	break;
       case 'N':
         type = (thisfield.Decimals) ? TYPE_DOUBLE
              : (len > 10) ? TYPE_BIGINT : TYPE_INT;
         break;
-      case 'F':
-        type = TYPE_DOUBLE;
+      case 'F':											 // Float
+			//case 'O':											 // Double
+				type = TYPE_DOUBLE;
         break;
       case 'D':
         type = TYPE_DATE;            // Is this correct ???
@@ -383,7 +393,7 @@ DBFBASE::DBFBASE(DBFBASE *txfp)
 /*  and header length. Set Records, check that Reclen is equal to lrecl and */
 /*  return the header length or 0 in case of error.                         */
 /****************************************************************************/
-int DBFBASE::ScanHeader(PGLOBAL g, PSZ fn, int lrecl, int *rln, char *defpath)
+int DBFBASE::ScanHeader(PGLOBAL g, PCSZ fn, int lrecl, int *rln, PCSZ defpath)
   {
   int       rc;
   char      filename[_MAX_PATH];
@@ -441,6 +451,7 @@ int DBFFAM::Cardinality(PGLOBAL g)
 
 			if (Accept) {
 				Lrecl = rln;
+				Blksize = Nrec * rln;
 				PushWarning(g, Tdbp);
 			} else
 				return -1;
@@ -492,7 +503,8 @@ bool DBFFAM::OpenTableFile(PGLOBAL g)
         break;
         } // endif
 
-      // Selective delete, pass thru
+      // Selective delete
+      /* fall through */
     case MODE_UPDATE:
       UseTemp = Tdbp->IsUsingTemp(g);
       strcpy(opmode, (UseTemp) ? "rb" : "r+b");
@@ -582,6 +594,7 @@ bool DBFFAM::AllocateBuffer(PGLOBAL g)
 
 				if (Accept) {
 					Lrecl = reclen;
+					Blksize = Nrec * Lrecl;
 					PushWarning(g, Tdbp);
 				}	else
 					return true;
@@ -598,7 +611,7 @@ bool DBFFAM::AllocateBuffer(PGLOBAL g)
       header->Filedate[1] = datm->tm_mon + 1;
       header->Filedate[2] = datm->tm_mday;
       header->SetHeadlen((ushort)hlen);
-      header->SetReclen((ushort)reclen);
+      header->SetReclen(reclen);
       descp = (DESCRIPTOR*)header;
 
       // Currently only standard Xbase types are supported
@@ -611,6 +624,7 @@ bool DBFFAM::AllocateBuffer(PGLOBAL g)
             case 'L':           // Large (big) integer
             case 'T':           // Tiny integer
               c = 'N';          // Numeric
+              /* fall through */
             case 'N':           // Numeric (integer)
             case 'F':           // Float (double)
               descp->Decimals = (uchar)cdp->F.Prec;
@@ -664,6 +678,7 @@ bool DBFFAM::AllocateBuffer(PGLOBAL g)
 
 				if (Accept) {
 					Lrecl = header.Reclen();
+					Blksize = Nrec * Lrecl;
 					PushWarning(g, Tdbp);
 				} else
 					return true;
@@ -956,6 +971,7 @@ int DBMFAM::Cardinality(PGLOBAL g)
 
 			if (Accept) {
 				Lrecl = rln;
+				Blksize = Nrec * Lrecl;
 				PushWarning(g, Tdbp);
 			} else
 				return -1;
@@ -1008,6 +1024,7 @@ bool DBMFAM::AllocateBuffer(PGLOBAL g)
 
 			if (Accept) {
 				Lrecl = hp->Reclen();
+				Blksize = Nrec * Lrecl;
 				PushWarning(g, Tdbp);
 			} else
 				return true;

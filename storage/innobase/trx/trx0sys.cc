@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -909,18 +909,12 @@ trx_sys_create_rsegs(
 		ulint	new_rsegs = n_rsegs - n_used;
 
 		for (i = 0; i < new_rsegs; ++i) {
-			ulint	space;
+			ulint	space_id;
+			space_id = (n_spaces == 0) ? 0
+				: (srv_undo_space_id_start + i % n_spaces);
 
-			/* Tablespace 0 is the system tablespace. All UNDO
-			log tablespaces start from 1. */
-
-			if (n_spaces > 0) {
-				space = (i % n_spaces) + 1;
-			} else {
-				space = 0; /* System tablespace */
-			}
-
-			if (trx_rseg_create(space) != NULL) {
+			/* Tablespace 0 is the system tablespace. */
+			if (trx_rseg_create(space_id) != NULL) {
 				++n_used;
 			} else {
 				break;
@@ -1190,7 +1184,9 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
 	/* Only prepared transactions may be left in the system. Free them. */
-	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
+	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx
+	     || srv_read_only_mode
+	     || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
 
 	while ((trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) != NULL) {
 		trx_free_prepared(trx);
