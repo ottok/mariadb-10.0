@@ -1,3 +1,21 @@
+mariadb-10.0 (10.0.31-0ubuntu0.16.10.1) yakkety-security; urgency=high
+
+  * SECURITY UPDATE: New upstream release 10.0.31. Includes fixes for the
+    following security vulnerabilities (LP: #1698689):
+    - CVE-2017-3464
+    - CVE-2017-3456
+    - CVE-2017-3453
+    - CVE-2017-3309
+    - CVE-2017-3308
+  * Previous release 10.0.30 included included fixes for
+    the following security vulnerabilities:
+    - CVE-2017-3313
+    - CVE-2017-3302
+  * Includes upstream fix for Debian log rotate to not rotate binary/relay
+    logs (MDEV-11610).
+
+ -- Otto Kekäläinen <otto@debian.org>  Mon, 19 Jun 2017 09:10:43 +0200
+
 mariadb-10.0 (10.0.29-0ubuntu0.16.10.1) yakkety-security; urgency=high
 
   * SECURITY UPDATE: New upstream release 10.0.29. Includes fixes for the
