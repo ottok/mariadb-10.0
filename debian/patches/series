@@ -15,3 +15,4 @@ mdev-8375-built-in-auth-socket.patch
 mdev-8375-passwordless-accounts-for-testsuite.patch
 mdev-9528-mysql_embedded.patch
 armhf_mroonga_storage_fail.patch
+mdev-13009-fix-innodb-no-64-atomics.patch
