@@ -1,5 +1,6 @@
 mariadb-10.0 (10.0.31-0ubuntu0.16.04.1) xenial-security; urgency=high
 
+  [ Otto Kekäläinen ]
   * SECURITY UPDATE: New upstream release 10.0.31. Includes fixes for the
     following security vulnerabilities (LP: #1698689):
     - CVE-2017-3464
@@ -14,7 +15,11 @@ mariadb-10.0 (10.0.31-0ubuntu0.16.04.1) xenial-security; urgency=high
   * Includes upstream fix for Debian log rotate to not rotate binary/relay
     logs (MDEV-11610).
 
- -- Otto Kekäläinen <otto@debian.org>  Mon, 19 Jun 2017 01:49:14 +0200
+  [ Vicențiu Ciorbaru ]
+  * Add patch that fixes upstream regression in 10.0.31 which made builds
+    on powerpc fail (‘ib_mutex_t’ does not name a type).
+
+ -- Otto Kekäläinen <otto@debian.org>  Wed, 28 Jun 2017 22:12:03 +0300
 
 mariadb-10.0 (10.0.29-0ubuntu0.16.04.1) xenial-security; urgency=high
 
