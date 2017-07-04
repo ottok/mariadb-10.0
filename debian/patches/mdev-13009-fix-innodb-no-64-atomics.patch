@@ -2,11 +2,9 @@ Description: Fix innodb compilation when missing 64 bit atomic builtins
 Author: Vicențiu Ciorbaru <vicentiu@mariadb.org>
 Last-Update: 2017-06-28
 
-diff --git a/storage/innobase/include/srv0mon.h b/storage/innobase/include/srv0mon.h
-index 09af5d4159..9c6f78c548 100644
 --- a/storage/innobase/include/srv0mon.h
 +++ b/storage/innobase/include/srv0mon.h
-@@ -616,6 +616,7 @@ Use MONITOR_DEC if appropriate mutex protection exists.
+@@ -616,6 +616,7 @@ Use MONITOR_DEC if appropriate mutex pro
  # define srv_mon_create() ((void) 0)
  # define srv_mon_free() ((void) 0)
  #else /* HAVE_ATOMIC_BUILTINS_64 */
