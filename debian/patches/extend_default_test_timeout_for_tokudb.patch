@@ -1,8 +1,8 @@
 Author: Otto Kekäläinen <otto@seravo.fi>
 Description: Extend timeout as some Debian pbuilder/sbuilder chroots may be very slow to run these
 
---- a/mysql-test/CMakeLists.txt
-+++ b/mysql-test/CMakeLists.txt
+--- mariadb-10.0.orig/mysql-test/CMakeLists.txt
++++ mariadb-10.0/mysql-test/CMakeLists.txt
 @@ -64,7 +64,7 @@ ELSE()
  ENDIF()
  

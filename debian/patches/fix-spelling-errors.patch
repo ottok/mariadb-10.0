@@ -2,8 +2,8 @@ Description: Fix spelling errors
 Author: Otto Kekäläinen <otto@seravo.fi>
 Last-Update: 2014-10-02
 
---- a/storage/connect/tabxml.cpp
-+++ b/storage/connect/tabxml.cpp
+--- mariadb-10.0.orig/storage/connect/tabxml.cpp
++++ mariadb-10.0/storage/connect/tabxml.cpp
 @@ -1845,7 +1845,7 @@ void XMULCOL::ReadColumn(PGLOBAL g)
  
        if (N > Tdbp->Limit) {
@@ -13,8 +13,8 @@ Last-Update: 2014-10-02
          PushWarning(g, Tdbp);
          } // endif N
  
---- a/storage/connect/mysql-test/connect/r/xml_mult.result
-+++ b/storage/connect/mysql-test/connect/r/xml_mult.result
+--- mariadb-10.0.orig/storage/connect/mysql-test/connect/r/xml_mult.result
++++ mariadb-10.0/storage/connect/mysql-test/connect/r/xml_mult.result
 @@ -51,14 +51,14 @@ WEB	XQuery Kick Start	en	Per Bothner	200
  WEB	XQuery Kick Start	en	Kurt Cagle	2003	49.99
  WEB	Learning XML	en	Erik T. Ray	2003	39.95
