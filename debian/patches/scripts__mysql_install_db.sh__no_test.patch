@@ -4,9 +4,9 @@
 ## DP: scripts__mysql_install_db.sh__no_test
 ## DP: http://bugs.mysql.com/bug.php?id=6901
 
---- mariadb-10.0.orig/scripts/mysql_install_db.sh
-+++ mariadb-10.0/scripts/mysql_install_db.sh
-@@ -374,7 +374,7 @@ then
+--- a/scripts/mysql_install_db.sh
++++ b/scripts/mysql_install_db.sh
+@@ -376,7 +376,7 @@ then
  fi
  
  # Create database directories

@@ -1,3 +1,13 @@
+mariadb-10.0 (10.0.33-0+deb8u1) jessie; urgency=medium
+
+  * New upstream version 10.0.33.  Includes fixes for the following
+    security vulnerabilities:
+    - CVE-2017-10378, MDEV-13819
+    - CVE-2017-10268
+  * Refresh patches on top of MariaDB 10.0.33
+
+ -- Otto Kekäläinen <otto@debian.org>  Tue, 21 Nov 2017 11:05:51 +0100
+
 mariadb-10.0 (10.0.32-1) jessie-security; urgency=medium
 
   * New upstream version 10.0.32.  Includes fixes for the following
