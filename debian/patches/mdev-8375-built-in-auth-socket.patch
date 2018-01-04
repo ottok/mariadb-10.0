@@ -9,13 +9,13 @@ Bug: https://jira.mariadb.org/browse/MDEV-8375
 
 --- a/mysql-test/mysql-test-run.pl
 +++ b/mysql-test/mysql-test-run.pl
-@@ -3628,6 +3628,9 @@ sub mysql_install_db {
-   mtr_tofile($bootstrap_sql_file,
- 	     "DELETE FROM mysql.user where user= '';\n");
+@@ -3644,6 +3644,9 @@ sub mysql_install_db {
+     mtr_tofile($bootstrap_sql_file,
+          "DELETE FROM mysql.user where user= '';\n");
  
-+  mtr_tofile($bootstrap_sql_file,
-+            "UPDATE mysql.user SET plugin='';\n");
++   mtr_tofile($bootstrap_sql_file,
++             "UPDATE mysql.user SET plugin='';\n");
 +
-   # Create mtr database
-   mtr_tofile($bootstrap_sql_file,
- 	     "CREATE DATABASE mtr CHARSET=latin1;\n");
+     # Create mtr database
+     mtr_tofile($bootstrap_sql_file,
+          "CREATE DATABASE mtr CHARSET=latin1;\n");

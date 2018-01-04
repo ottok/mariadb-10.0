@@ -1,3 +1,22 @@
+mariadb-10.0 (10.0.33-0ubuntu0.16.04.1) xenial-security; urgency=high
+
+  [ Otto Kekäläinen ]
+  * SECURITY UPDATE: New upstream release 10.0.33. Includes fixes for the
+    following security vulnerabilities (LP: #1740608):
+    - CVE-2017-10378
+    - CVE-2017-10268
+    - MDEV-13819
+  * Previous release 10.0.32 included included fixes for
+    - CVE-2017-10384
+    - CVE-2017-10379
+    - CVE-2017-10286
+    - CVE-2017-3636
+    - CVE-2017-3641
+    - CVE-2017-3653
+  * Remove InnoDB build failure fix applied upstream
+
+ -- Otto Kekäläinen <otto@debian.org>  Thu, 04 Jan 2018 11:44:00 +0200
+
 mariadb-10.0 (10.0.31-0ubuntu0.16.04.1) xenial-security; urgency=high
 
   [ Otto Kekäläinen ]
