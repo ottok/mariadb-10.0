@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2017, MariaDB Corporation
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -96,6 +97,13 @@ IF(CMAKE_GENERATOR MATCHES "Makefiles")
   ENDFOREACH()
 ENDIF()
 
+
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  SET (PERL_PATH "/usr/local/bin/perl")
+ELSE()
+  SET (PERL_PATH "/usr/bin/perl")
+ENDIF()
+
 IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -191,6 +199,11 @@ IF(INSTALL_LAYOUT MATCHES "STANDALONE")
 ELSE()
   SET(localstatedir ${MYSQL_DATADIR})
 ENDIF()
+
+SET(resolveip_locations "$basedir/${INSTALL_BINDIR} $basedir/bin")
+SET(mysqld_locations "$basedir/${INSTALL_SBINDIR} $basedir/libexec $basedir/sbin $basedir/bin")
+SET(errmsg_locations "$basedir/${INSTALL_MYSQLSHAREDIR}/english $basedir/share/english $basedir/share/mysql/english")
+SET(pkgdata_locations "$basedir/${INSTALL_MYSQLSHAREDIR} $basedir/share $basedir/share/mysql")
 
 IF(UNIX)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
@@ -378,4 +391,3 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_FLAGS MATCHES "-static")
     COMPONENT Development)
   ENDIF()
 ENDIF()
-

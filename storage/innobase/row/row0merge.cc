@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2014, 2017, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1452,6 +1452,8 @@ row_merge_read_clustered_index(
 		row_ext_t*	ext;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
+		mem_heap_empty(row_heap);
+
 		page_cur_move_to_next(cur);
 
 		if (page_cur_is_after_last(cur)) {
@@ -1875,8 +1877,6 @@ write_buffers:
 		if (err != DB_SUCCESS) {
 			goto func_exit;
 		}
-
-		mem_heap_empty(row_heap);
 	}
 
 func_exit:
@@ -3532,11 +3532,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const index_def_t*	index_def,
-					/*!< in: the index definition */
-	const char**		col_names)
-					/*! in: column names if columns are
-					renamed or NULL */
+	const index_def_t*	index_def) /*!< in: the index definition */
 {
 	dict_index_t*	index;
 	dberr_t		err;
@@ -3556,28 +3552,10 @@ row_merge_create_index(
 
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];
-		const char * col_name;
-
-		/*
-		Alter table renaming a column and then adding a index
-		to this new name e.g ALTER TABLE t
-		CHANGE COLUMN b c INT NOT NULL, ADD UNIQUE INDEX (c);
-		requires additional check as column names are not yet
-		changed when new index definitions are created. Table's
-		new column names are on a array of column name pointers
-		if any of the column names are changed. */
-
-		if (col_names && col_names[i]) {
-			col_name = col_names[i];
-		} else {
-			col_name = ifield->col_name ?
-				dict_table_get_col_name_for_mysql(table, ifield->col_name) :
-				dict_table_get_col_name(table, ifield->col_no);
-		}
 
 		dict_mem_index_add_field(
 			index,
-			col_name,
+			dict_table_get_col_name(table, ifield->col_no),
 			ifield->prefix_len);
 	}
 

@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2013, Monty Program Ab.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2017, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6403,9 +6403,6 @@ uint Field::is_equal(Create_field *new_field)
 
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (field_flags_are_binary() != new_field->field_flags_are_binary())
-    return 0;
-
   return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
 	  new_field->length == max_display_length());
@@ -7810,9 +7807,6 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (field_flags_are_binary() != new_field->field_flags_are_binary())
-    return 0;
-
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
           new_field->pack_length == pack_length());
@@ -7933,6 +7927,18 @@ Field::geometry_type Field_geom::geometry_type_merge(geometry_type a,
   return Field::GEOM_GEOMETRY;
 }
 
+
+uint Field_geom::is_equal(Create_field *new_field)
+{
+  return new_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+         /*
+           - Allow ALTER..INPLACE to supertype (GEOMETRY),
+             e.g. POINT to GEOMETRY or POLYGON to GEOMETRY.
+           - Allow ALTER..INPLACE to the same geometry type: POINT -> POINT
+         */
+         (new_field->geom_type == geom_type ||
+          new_field->geom_type == GEOM_GEOMETRY);
+}
 #endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
@@ -8209,13 +8215,13 @@ String *Field_set::val_str(String *val_buffer,
   ulonglong tmp=(ulonglong) Field_enum::val_int();
   uint bitnr=0;
 
+  /*
+    Some callers expect *val_buffer to contain the result,
+    so we assign to it, rather than doing 'return &empty_set_string.
+  */
+  *val_buffer= empty_set_string;
   if (tmp == 0)
   {
-    /*
-      Some callers expect *val_buffer to contain the result,
-      so we assign to it, rather than doing 'return &empty_set_string.
-     */
-    *val_buffer= empty_set_string;
     return val_buffer;
   }
 
@@ -8336,8 +8342,7 @@ uint Field_enum::is_equal(Create_field *new_field)
     The fields are compatible if they have the same flags,
     type, charset and have the same underlying length.
   */
-  if (new_field->field_flags_are_binary() != field_flags_are_binary() ||
-      new_field->sql_type != real_type() ||
+  if (new_field->sql_type != real_type() ||
       new_field->charset != field_charset ||
       new_field->pack_length != pack_length())
     return IS_EQUAL_NO;

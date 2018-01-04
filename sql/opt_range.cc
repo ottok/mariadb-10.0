@@ -7949,8 +7949,10 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   DBUG_ENTER("get_full_func_mm_tree");
 
 #ifdef HAVE_SPATIAL
+  Field::geometry_type sav_geom_type;
   if (field_item->field->type() == MYSQL_TYPE_GEOMETRY)
   {
+    sav_geom_type= ((Field_geom*) field_item->field)->geom_type;
     /* We have to be able to store all sorts of spatial features here */
     ((Field_geom*) field_item->field)->geom_type= Field::GEOM_GEOMETRY;
   }
@@ -7982,6 +7984,13 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
       }
     }
   }
+
+#ifdef HAVE_SPATIAL
+  if (field_item->field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    ((Field_geom*) field_item->field)->geom_type= sav_geom_type;
+  }
+#endif /*HAVE_SPATIAL*/
   DBUG_RETURN(ftree);
 }
 
@@ -8982,6 +8991,34 @@ bool sel_trees_can_be_ored(RANGE_OPT_PARAM* param,
 }
 
 /*
+  Check whether the key parts inf_init..inf_end-1 of one index can compose
+  an infix for the key parts key_init..key_end-1 of another index
+*/
+
+static
+bool is_key_infix(KEY_PART *key_init, KEY_PART *key_end,
+                  KEY_PART *inf_init, KEY_PART *inf_end)
+{
+  KEY_PART *key_part, *inf_part;
+  for (key_part= key_init; key_part < key_end; key_part++)
+  {
+    if (key_part->field->eq(inf_init->field))
+      break;
+  }
+  if (key_part == key_end)
+    return false;
+  for (key_part++, inf_part= inf_init + 1;
+       key_part < key_end && inf_part < inf_end;
+       key_part++, inf_part++)
+  { 
+    if (!key_part->field->eq(inf_part->field))
+      return false;
+  }
+  return inf_part == inf_end;
+}
+
+
+/*
   Check whether range parts of two trees must be ored for some indexes
 
   SYNOPSIS
@@ -9037,14 +9074,9 @@ bool sel_trees_must_be_ored(RANGE_OPT_PARAM* param,
       
       KEY_PART *key2_init= param->key[idx2]+tree2->keys[idx2]->part;
       KEY_PART *key2_end= param->key[idx2]+tree2->keys[idx2]->max_part_no;
-      KEY_PART *part1, *part2;
-      for (part1= key1_init, part2= key2_init;
-           part1 < key1_end && part2 < key2_end;
-           part1++, part2++)
-      { 
-        if (!part1->field->eq(part2->field))
-          DBUG_RETURN(FALSE);
-      }
+      if (!is_key_infix(key1_init, key1_end, key2_init, key2_end) &&
+          !is_key_infix(key2_init, key2_end, key1_init, key1_end))
+        DBUG_RETURN(FALSE);
     }
   }
       

@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2032,15 +2033,6 @@ fseg_create_general(
 
 	mtr_x_lock(latch, mtr);
 
-	if (rw_lock_get_x_lock_count(latch) == 1) {
-		/* This thread did not own the latch before this call: free
-		excess pages from the insert buffer free list */
-
-		if (space == IBUF_SPACE_ID) {
-			ibuf_free_excess_pages();
-		}
-	}
-
 	if (!has_done_reservation) {
 		success = fsp_reserve_free_extents(&n_reserved, space, 2,
 						   FSP_NORMAL, mtr);
@@ -2612,15 +2604,6 @@ fseg_alloc_free_page_general(
 
 	mtr_x_lock(latch, mtr);
 
-	if (rw_lock_get_x_lock_count(latch) == 1) {
-		/* This thread did not own the latch before this call: free
-		excess pages from the insert buffer free list */
-
-		if (space == IBUF_SPACE_ID) {
-			ibuf_free_excess_pages();
-		}
-	}
-
 	inode = fseg_inode_get(seg_header, space, zip_size, mtr);
 
 	if (!has_done_reservation
@@ -2729,7 +2712,6 @@ fsp_reserve_free_extents(
 	ibool		success;
 	ulint		n_pages_added;
 	size_t		total_reserved = 0;
-	ulint		rounds = 0;
 
 	ut_ad(mtr);
 	*n_reserved = n_ext;
@@ -2809,17 +2791,7 @@ try_to_extend:
 					   space_header, mtr);
 
 	if (success && n_pages_added > 0) {
-
-		rounds++;
 		total_reserved += n_pages_added;
-
-		if (rounds > 50) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Space id %lu trying to reserve %lu extents actually reserved %lu "
-				" reserve %lu free %lu size %lu rounds %lu total_reserved %llu",
-				space, n_ext, n_pages_added, reserve, n_free, size, rounds, (ullint) total_reserved);
-		}
-
 		goto try_again;
 	}
 
