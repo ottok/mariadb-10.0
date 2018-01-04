@@ -13,4 +13,3 @@ mysqld_multi.server_lsb-header.patch
 mdev-8375-passwordless-root-via-socket-auth.patch
 mdev-8375-built-in-auth-socket.patch
 mdev-9528-mysql_embedded.patch
-mdev-13009-fix-innodb-no-64-atomics.patch
